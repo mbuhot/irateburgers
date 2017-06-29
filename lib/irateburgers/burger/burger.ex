@@ -2,8 +2,9 @@ defmodule Irateburgers.Burger do
   use Ecto.Schema
   alias Irateburgers.{Burger, Review}
 
-  @primary_key {:id, :binary_id, autogenerate: false}
+  @primary_key false
   embedded_schema do
+    field :id, :binary_id
     field :version, :integer
     field :name, :string
     field :price, :string
@@ -27,5 +28,9 @@ defmodule Irateburgers.Burger do
     Enum.reduce(events, burger, fn event, burger ->
       event.__struct__.apply(event, burger)
     end)
+  end
+
+  def find_review_by_user(burger = %Burger{}, username) when is_binary(username) do
+    Enum.find(burger.reviews, fn review -> review.username == username end)
   end
 end

@@ -7,6 +7,7 @@ defmodule Irateburgers.BurgerReviewed do
   embedded_schema do
     field :id, :binary_id
     field :burger_id, :binary_id
+    field :version, :integer
     field :username, :string
     field :rating, :integer
     field :comment, :string
@@ -14,7 +15,7 @@ defmodule Irateburgers.BurgerReviewed do
   end
 
   def new(params) do
-    case changeset(%BurgerReviewed{}, Map.put_new(params, "id", Ecto.UUID.generate())) do
+    case changeset(%BurgerReviewed{}, Map.new(params)) do
       cs = %{valid?: true} -> {:ok, Ecto.Changeset.apply_changes(cs)}
       cs -> {:error, cs}
     end
@@ -22,19 +23,36 @@ defmodule Irateburgers.BurgerReviewed do
 
   def changeset(struct, params) do
     struct
-    |> Changeset.cast(params, [:id, :burger_id, :username, :rating, :comment, :created_at])
-    |> Changeset.validate_required([:id, :burger_id, :username, :rating, :created_at])
+    |> Changeset.cast(params, [:id, :burger_id, :version, :username, :rating, :comment, :created_at])
+    |> Changeset.validate_required([:id, :burger_id, :version, :username, :rating, :created_at])
   end
 
-  def apply(event = %BurgerReviewed{burger_id: id}, burger = %Burger{id: id, reviews: reviews}) do
-    review = %Review{
+  def apply(event = %BurgerReviewed{burger_id: id, version: m},
+            burger = %Burger{id: id, version: n, reviews: reviews}) when m == (n+1) do
+    {:ok, review} = Review.new(
       id: event.id,
       username: event.username,
       rating: event.rating,
       comment: event.comment,
-      created_at: event.created_at
-    }
+      created_at: event.created_at)
 
-    %{burger | reviews: [review | reviews]}
+    %{burger | version: event.version, reviews: [review | reviews]}
+  end
+
+  def to_eventlog(event = %BurgerReviewed{}) do
+    %Irateburgers.Event{
+      aggregate: event.burger_id,
+      sequence: event.version,
+      type: to_string(__MODULE__),
+      payload: %{
+        id: event.id,
+        burger_id: event.burger_id,
+        version: event.version,
+        username: event.username,
+        rating: event.rating,
+        comment: event.comment,
+        created_at: event.created_at
+      }
+    }
   end
 end

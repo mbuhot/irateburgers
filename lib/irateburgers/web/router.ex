@@ -9,6 +9,7 @@ defmodule Irateburgers.Web.Router do
     pipe_through :api
 
     post "/burgers", BurgerCreatePlug, :create, as: :burger
-    get "/bugers/:id", BurgerShowPlug, :show, as: :burger
+    get  "/burgers/:id", BurgerShowPlug, :show, as: :burger
+    post "/burgers/:id/reviews", BurgerReviewCreatePlug, :create, as: :burger_review
   end
 end
