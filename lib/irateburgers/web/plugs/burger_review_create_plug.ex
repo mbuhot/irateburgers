@@ -2,7 +2,7 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlug do
   use Plug.Builder
   import Plug.Conn, only: [put_resp_content_type: 2]
   alias Plug.Conn
-  alias Irateburgers.{Review, ReviewBurger}
+  alias Irateburgers.{Burger, Review, ReviewBurger}
   alias Irateburgers.Web.ErrorHelpers
   alias Ecto.Changeset
 
@@ -13,7 +13,7 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlug do
   plug :respond
 
   def validate(conn, _opts) do
-    with {:ok, command = %ReviewBurger{}} <- ReviewBurger.new(conn.params) do
+    with {:ok, command = %ReviewBurger{}} <- ReviewBurger.new(Map.put(conn.params, "burger_id", conn.params["id"])) do
       Conn.assign conn, :command, command
     else
       {:error, changeset = %Changeset{}} ->
@@ -28,9 +28,14 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlug do
   end
 
   def create(conn = %Conn{assigns: %{command: command = %ReviewBurger{}}}, _opts) do
-    with {:ok, review = %Review{}} <- Irateburgers.BurgerServer.review_burger(command) do
+    with {:ok, burger = %Burger{}} <- Irateburgers.BurgerServer.review_burger(command),
+         review <- Burger.find_review_by_user(burger, command.username) do
       Conn.assign conn, :review, review
     else
+      {:error, :burger_not_found} ->
+        conn
+        |> Conn.send_resp(404, Poison.encode! %{error: "Burger with id: #{command.burger_id} not found"})
+        |> Conn.halt()
       {:error, reason} ->
         conn
         |> Conn.send_resp(422, Poison.encode! %{error: reason})

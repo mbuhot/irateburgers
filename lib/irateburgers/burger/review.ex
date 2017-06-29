@@ -13,7 +13,7 @@ defmodule Irateburgers.Review do
   end
 
   def new(params) do
-    case changeset(%Review{}, params) do
+    case changeset(%Review{}, Map.new(params)) do
       cs = %{valid?: true} -> {:ok, Ecto.Changeset.apply_changes(cs)}
       cs -> {:error, cs}
     end

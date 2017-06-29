@@ -1,7 +1,7 @@
 defmodule Irateburgers.BurgerReviewed do
   use Ecto.Schema
   alias Ecto.Changeset
-  alias Irateburgers.{Burger, Review, BurgerReviewed}
+  alias Irateburgers.{Burger, Event, Review, BurgerReviewed}
 
   @primary_key false
   embedded_schema do
@@ -40,19 +40,27 @@ defmodule Irateburgers.BurgerReviewed do
   end
 
   def to_eventlog(event = %BurgerReviewed{}) do
-    %Irateburgers.Event{
+    %Event{
       aggregate: event.burger_id,
       sequence: event.version,
       type: to_string(__MODULE__),
       payload: %{
         id: event.id,
-        burger_id: event.burger_id,
-        version: event.version,
         username: event.username,
         rating: event.rating,
         comment: event.comment,
         created_at: event.created_at
       }
     }
+  end
+
+  def from_event_log(event = %Event{}) do
+    {:ok, domain_event} =
+      BurgerReviewed.new(
+        Map.merge(
+          event.payload,
+          %{"burger_id" => event.aggregate, "version" => event.sequence}))
+
+    domain_event
   end
 end

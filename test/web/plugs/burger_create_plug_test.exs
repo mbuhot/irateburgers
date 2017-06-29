@@ -2,19 +2,24 @@ defmodule Irateburgers.Web.BurgerCreatePlugTest do
   use Irateburgers.Web.ConnCase
   alias Plug.Conn
 
-  describe "Creating a burger" do
-    test "Succeeds with valid params", %{conn: conn} do
-      params = Poison.encode! %{
-        name: "Big Mac",
-        price: "$6.50",
-        description: "Beef, Cheese, Lettuce, Pickles, Special Sauce",
-        images: ["http://imgur.com/foo/bar"]
-      }
+  def big_mac_params do
+    %{
+      name: "Big Mac",
+      price: "$6.50",
+      description: "Beef, Cheese, Lettuce, Pickles, Special Sauce",
+      images: ["http://imgur.com/foo/bar"]
+    }
+  end
 
+  describe "Creating a burger" do
+    setup %{conn: conn} do
+      %{conn: Conn.put_req_header(conn, "content-type", "application/json")}
+    end
+
+    test "Succeeds with valid params", %{conn: conn} do
       response =
         conn
-        |> Conn.put_req_header("content-type", "application/json")
-        |> post(burger_path(conn, :create), params)
+        |> post(burger_path(conn, :create), Poison.encode!(big_mac_params()))
         |> json_response(201)
 
       assert %{
@@ -31,7 +36,6 @@ defmodule Irateburgers.Web.BurgerCreatePlugTest do
     test "fails with missing fields", %{conn: conn} do
       response =
         conn
-        |> Conn.put_req_header("content-type", "application/json")
         |> post(burger_path(conn, :create), "{}")
         |> json_response(422)
 
@@ -40,6 +44,23 @@ defmodule Irateburgers.Web.BurgerCreatePlugTest do
         "name" => ["can't be blank"],
         "description" => ["can't be blank"]
       } = response
+    end
+
+    test "fails if burger already exists", %{conn: conn} do
+      id = Ecto.UUID.generate()
+      params = big_mac_params() |> Map.put("id", id) |> Poison.encode!()
+
+      _ =
+        conn
+        |> post(burger_path(conn, :create), params)
+        |> json_response(201)
+
+      response =
+        conn
+        |> post(burger_path(conn, :create), params)
+        |> json_response(422)
+
+      assert response["error"] =~ ~r/Burger with id: (.*) already exists/
     end
   end
 end

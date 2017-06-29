@@ -31,6 +31,11 @@ defmodule Irateburgers.Web.BurgerCreatePlug do
     with {:ok, burger = %Burger{}} <- Irateburgers.BurgerServer.create(command) do
       Conn.assign conn, :burger, burger
     else
+      {:error, :burger_already_exists} ->
+        conn
+        |> Conn.send_resp(422, Poison.encode! %{error: "Burger with id: #{command.id} already exists"})
+        |> Conn.halt()
+
       {:error, reason} ->
         conn
         |> Conn.send_resp(422, Poison.encode! %{error: reason})

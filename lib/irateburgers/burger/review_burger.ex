@@ -31,7 +31,8 @@ defmodule Irateburgers.ReviewBurger do
     |> Changeset.validate_required([:id, :burger_id, :username, :rating, :comment, :created_at])
   end
 
-  def execute(command = %ReviewBurger{burger_id: burger_id}, burger = %Burger{id: burger_id}) do
+  def execute(command = %ReviewBurger{burger_id: burger_id},
+              burger = %Burger{id: burger_id, version: n}) when (n > 0) do
     with nil <- Burger.find_review_by_user(burger, command.username) do
       {:ok, event} = BurgerReviewed.new(
         id: command.id,
@@ -46,5 +47,9 @@ defmodule Irateburgers.ReviewBurger do
     else
       %Review{} -> {:error, :user_already_reviewed}
     end
+  end
+  def execute(command = %ReviewBurger{burger_id: burger_id},
+              burger = %Burger{id: burger_id, version: 0}) do
+    {:error, :burger_not_found}
   end
 end

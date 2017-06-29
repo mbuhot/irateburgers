@@ -1,7 +1,7 @@
 defmodule Irateburgers.BurgerCreated do
   use Ecto.Schema
   alias Ecto.Changeset
-  alias Irateburgers.{Burger, BurgerCreated}
+  alias Irateburgers.{Burger, BurgerCreated, Event}
 
   @primary_key false
   embedded_schema do
@@ -14,7 +14,7 @@ defmodule Irateburgers.BurgerCreated do
   end
 
   def new(params) do
-    case changeset(%BurgerCreated{}, params) do
+    case changeset(%BurgerCreated{}, Map.new(params)) do
       cs = %{valid?: true} -> {:ok, Ecto.Changeset.apply_changes(cs)}
       cs -> {:error, cs}
     end
@@ -37,7 +37,7 @@ defmodule Irateburgers.BurgerCreated do
   end
 
   def to_eventlog(event = %BurgerCreated{}) do
-    %Irateburgers.Event{
+    %Event{
       aggregate: event.id,
       sequence: event.version,
       type: to_string(__MODULE__),
@@ -48,5 +48,15 @@ defmodule Irateburgers.BurgerCreated do
         images: event.images
       }
     }
+  end
+
+  def from_event_log(event = %Event{}) do
+    {:ok, domain_event} =
+      BurgerCreated.new(
+        Map.merge(
+          event.payload,
+          %{"id" => event.aggregate, "version" => event.sequence}))
+
+    domain_event
   end
 end

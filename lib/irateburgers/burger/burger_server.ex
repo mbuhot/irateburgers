@@ -1,17 +1,32 @@
 defmodule Irateburgers.BurgerServer do
   use GenServer
-  alias Irateburgers.{Burger, CreateBurger, Web.ErrorHelpers, ReviewBurger, Repo}
+  require Ecto.Query, as: Query
+  alias Irateburgers.{Burger, CreateBurger, Event, Web.ErrorHelpers, ReviewBurger, Repo}
   alias Ecto.Changeset
 
-  def start_link(burger = %Burger{}) do
+  def start_link(burger = %Burger{version: 0}) do
     GenServer.start_link(__MODULE__, burger, name: via_tuple(burger.id))
+  end
+
+  def init(burger = %Burger{version: 0}) do
+    events = Repo.all(
+      Query.from e in Event,
+      where: e.aggregate == ^burger.id,
+      order_by: {:asc, e.sequence})
+
+    burger =
+      events
+      |> Enum.map(fn e -> String.to_existing_atom(e.type).from_event_log(e) end)
+      |> Enum.reduce(burger, fn e, acc -> e.__struct__.apply(e, acc) end)
+
+    {:ok, burger}
   end
 
   defp via_tuple(burger_id), do: {:via, Registry, {Irateburgers.Registry, burger_id}}
 
   defp find_burger_pid(burger_id) do
     case Registry.lookup(Irateburgers.Registry, burger_id) do
-      [{:ok, pid}] -> pid
+      [{pid, _}] when is_pid(pid) -> pid
       [] ->
         case start_link(%Burger{id: burger_id, version: 0}) do
           {:ok, pid} -> pid
