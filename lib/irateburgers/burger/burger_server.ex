@@ -1,81 +1,30 @@
 defmodule Irateburgers.BurgerServer do
   use GenServer
-  require Ecto.Query, as: Query
-  alias Irateburgers.{Burger, CreateBurger, Event, Web.ErrorHelpers, ReviewBurger, Repo}
-  alias Ecto.Changeset
-
-  def start_link(burger = %Burger{version: 0}) do
-    GenServer.start_link(__MODULE__, burger, name: via_tuple(burger.id))
-  end
+  alias Irateburgers.{Aggregate, Burger, CreateBurger, Command, ReviewBurger}
 
   def init(burger = %Burger{version: 0}) do
-    events = Repo.all(
-      Query.from e in Event,
-      where: e.aggregate == ^burger.id,
-      order_by: {:asc, e.sequence})
-
-    burger =
-      events
-      |> Enum.map(fn e -> String.to_existing_atom(e.type).from_event_log(e) end)
-      |> Enum.reduce(burger, fn e, acc -> e.__struct__.apply(e, acc) end)
-
-    {:ok, burger}
+    {:ok, Aggregate.init(burger)}
   end
 
-  defp via_tuple(burger_id), do: {:via, Registry, {Irateburgers.Registry, burger_id}}
-
-  defp find_burger_pid(burger_id) do
-    case Registry.lookup(Irateburgers.Registry, burger_id) do
-      [{pid, _}] when is_pid(pid) -> pid
-      [] ->
-        case start_link(%Burger{id: burger_id, version: 0}) do
-          {:ok, pid} -> pid
-          {:error, :already_registered, pid} -> pid
-        end
-    end
+  defp dispatch_command(id, command) do
+    pid = Aggregate.find_or_start(id, %Burger{id: id, version: 0}, __MODULE__)
+    GenServer.call(pid, {:command, command})
   end
 
   def create(command = %CreateBurger{id: id}) do
-    GenServer.call(find_burger_pid(id), command)
+    dispatch_command(id, command)
   end
 
   def review_burger(command = %ReviewBurger{burger_id: burger_id}) do
-    GenServer.call(find_burger_pid(burger_id), command)
+    dispatch_command(burger_id, command)
   end
 
-  def handle_call(command = %CreateBurger{}, _from, burger = %Burger{}) do
-    execute_command(command, burger)
-  end
-
-  def handle_call(command = %ReviewBurger{}, _from, burger = %Burger{}) do
-    execute_command(command, burger)
-  end
-
-  defp execute_command(command, burger = %Burger{}) do
-    result = Repo.transaction fn ->
-      # establish advisory lock...
-      with {:ok, [event]} <- command.__struct__.execute(command, burger),
-           event_log <- event.__struct__.to_eventlog(event),
-           {:ok, _} <- insert_event(event_log) do
-        Burger.apply_events(burger, [event])
-      else
-        {:error, changeset = %Changeset{}} ->
-          Repo.rollback(ErrorHelpers.errors_on(changeset))
-
-        {:error, reason} ->
-          Repo.rollback(reason)
-      end
+  def handle_call({:command, command}, _from, burger = %Burger{}) do
+    case Command.execute(command, burger) do
+      {:ok, new_burger} ->
+        {:reply, {:ok, new_burger}, new_burger}
+      {:error, reason} ->
+        {:reply, {:error, reason}, burger}
     end
-    case result do
-      {:ok, new_burger} -> {:reply, {:ok, new_burger}, new_burger}
-      {:error, reason} -> {:reply, {:error, reason}, burger}
-    end
-  end
-
-  defp insert_event(event) do
-    event
-    |> Changeset.change()
-    |> Changeset.unique_constraint(:sequence, name: :events_aggregate_sequence_index)
-    |> Repo.insert()
   end
 end
