@@ -24,12 +24,6 @@ defmodule Irateburgers.Burger do
     }
   end
 
-  def apply_events(burger = %Burger{}, events) when is_list(events) do
-    Enum.reduce(events, burger, fn event, burger ->
-      event.__struct__.apply(event, burger)
-    end)
-  end
-
   def find_review_by_user(burger = %Burger{}, username) when is_binary(username) do
     Enum.find(burger.reviews, fn review -> review.username == username end)
   end

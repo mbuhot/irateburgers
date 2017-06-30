@@ -29,8 +29,7 @@ defmodule Irateburgers.EventListener do
     %{"id" => id, "aggregate" => aggregate_id} = Poison.decode!(payload)
     case Registry.lookup(Irateburgers.Registry, aggregate_id) do
       [{pid, _}] when is_pid(pid) ->
-        stored_event = Repo.get(Event, id)
-        event = String.to_existing_atom(stored_event.type).from_event_log(stored_event)
+        event = Event |> Repo.get(id) |> Event.to_struct()
         send(pid, {:event, event})
       [] ->
         nil

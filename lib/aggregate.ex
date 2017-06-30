@@ -6,15 +6,14 @@ defmodule Irateburgers.Aggregate do
   Initialize an aggregate from events in the Repo
   """
   def init(aggregate = %{id: id, version: version}) do
-    events = Repo.all(
+    db_events = Repo.all(
       Query.from e in Event,
       where: e.aggregate == ^id,
       where: e.sequence > ^version,
       order_by: {:asc, e.sequence})
 
-    events
-    |> Enum.map(fn e -> String.to_existing_atom(e.type).from_event_log(e) end)
-    |> Enum.reduce(aggregate, fn e, acc -> e.__struct__.apply(e, acc) end)
+    events = Enum.map(db_events, &Event.to_struct/1)
+    apply_events(aggregate, events)
   end
 
   @doc """
@@ -44,7 +43,7 @@ defmodule Irateburgers.Aggregate do
   """
   def ensure_event_applied(aggregate = %{version: version}, event = %{version: event_version}) do
     cond do
-      event_version == version + 1 -> event.__struct__.apply(aggregate)
+      event_version == version + 1 -> Event.apply(event, aggregate)
       event_version > version + 1 -> init(aggregate)
       event_version <= version -> aggregate
     end
@@ -54,8 +53,6 @@ defmodule Irateburgers.Aggregate do
   Applies a list of events in order to an aggregate
   """
   def apply_events(aggregate, events) when is_list(events) do
-    Enum.reduce(events, aggregate, fn event, acc ->
-      event.__struct__.apply(event, acc)
-    end)
+    Enum.reduce(events, aggregate, &Event.apply/2)
   end
 end
