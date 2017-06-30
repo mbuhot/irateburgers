@@ -36,7 +36,7 @@ defmodule Irateburgers.CreateBurger do
     }
     {:ok, [event]}
   end
-  def execute(command = %CreateBurger{id: id}, burger = %Burger{id: id, version: n}) when (n > 0) do
+  def execute(%CreateBurger{id: id}, %Burger{id: id, version: n}) when (n > 0) do
     {:error, :burger_already_exists}
   end
 end

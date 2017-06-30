@@ -30,6 +30,27 @@ COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
 
 SET search_path = public, pg_catalog;
 
+--
+-- Name: notify_events_added(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION notify_events_added() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  PERFORM pg_notify(
+    'events',
+    json_build_object(
+      'id', NEW.id,
+      'aggregate', NEW.aggregate,
+      'type', NEW.type
+    )::text
+  );
+  RETURN NEW;
+END;
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_with_oids = false;
@@ -40,10 +61,10 @@ SET default_with_oids = false;
 
 CREATE TABLE events (
     id integer NOT NULL,
-    aggregate uuid,
-    sequence integer,
-    type character varying(255),
-    payload jsonb
+    aggregate uuid NOT NULL,
+    sequence integer NOT NULL,
+    type character varying(255) NOT NULL,
+    payload jsonb NOT NULL
 );
 
 
@@ -100,8 +121,22 @@ ALTER TABLE ONLY schema_migrations
 
 
 --
+-- Name: events_aggregate_sequence_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX events_aggregate_sequence_index ON events USING btree (aggregate, sequence);
+
+
+--
+-- Name: events tr_notify_events_added; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER tr_notify_events_added AFTER INSERT ON events FOR EACH ROW EXECUTE PROCEDURE notify_events_added();
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-INSERT INTO "schema_migrations" (version) VALUES (20170628083824);
+INSERT INTO "schema_migrations" (version) VALUES (20170628083824), (20170630084751);
 
