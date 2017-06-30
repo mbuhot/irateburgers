@@ -1,5 +1,5 @@
 defmodule Irateburgers.Command do
-  alias Irateburgers.{Event, Repo}
+  alias Irateburgers.{Aggregate, Event, Repo}
   alias Irateburgers.Web.ErrorHelpers
   alias Ecto.Changeset
 
@@ -12,7 +12,7 @@ defmodule Irateburgers.Command do
       Repo.query("SELECT pg_advisory_xact_lock($1)", [:erlang.phash2(id)])
       with {:ok, events} <- command.__struct__.execute(command, aggregate),
            :ok <- log_events(events) do
-        aggregate.__struct__.apply_events(aggregate, events)
+        Aggregate.apply_events(aggregate, events)
       else
         {:error, changeset = %Changeset{}} ->
           Repo.rollback(ErrorHelpers.errors_on(changeset))

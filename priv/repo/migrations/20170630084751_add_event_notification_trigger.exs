@@ -11,6 +11,7 @@ defmodule Irateburgers.Repo.Migrations.AddEventNotificationTrigger do
         json_build_object(
           'id', NEW.id,
           'aggregate', NEW.aggregate,
+          'sequence', NEW.sequence,
           'type', NEW.type
         )::text
       );

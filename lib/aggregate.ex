@@ -5,10 +5,11 @@ defmodule Irateburgers.Aggregate do
   @doc """
   Initialize an aggregate from events in the Repo
   """
-  def init(aggregate = %{id: id, version: 0}) do
+  def init(aggregate = %{id: id, version: version}) do
     events = Repo.all(
       Query.from e in Event,
       where: e.aggregate == ^id,
+      where: e.sequence > ^version,
       order_by: {:asc, e.sequence})
 
     events
@@ -33,5 +34,28 @@ defmodule Irateburgers.Aggregate do
           {:error, :already_registered, pid} -> pid
         end
     end
+  end
+
+  @doc """
+  Given an aggregate and an event, ensures that the event is applied to the aggregate by one of:
+   - Applying the event to the aggregate, if the event version is 1 greater than the aggregate version
+   - Loading all new events for the aggregate, if the event version is more than 1 greater than the aggregate version
+   - Otherwise return the aggregate as-is if the event version is not greater than the aggregate version
+  """
+  def ensure_event_applied(aggregate = %{version: version}, event = %{version: event_version}) do
+    cond do
+      event_version == version + 1 -> event.__struct__.apply(aggregate)
+      event_version > version + 1 -> init(aggregate)
+      event_version <= version -> aggregate
+    end
+  end
+
+  @doc """
+  Applies a list of events in order to an aggregate
+  """
+  def apply_events(aggregate, events) when is_list(events) do
+    Enum.reduce(events, aggregate, fn event, acc ->
+      event.__struct__.apply(event, acc)
+    end)
   end
 end

@@ -45,22 +45,5 @@ defmodule Irateburgers.Web.BurgerCreatePlugTest do
         "description" => ["can't be blank"]
       } = response
     end
-
-    test "fails if burger already exists", %{conn: conn} do
-      id = Ecto.UUID.generate()
-      params = big_mac_params() |> Map.put("id", id) |> Poison.encode!()
-
-      _ =
-        conn
-        |> post(burger_path(conn, :create), params)
-        |> json_response(201)
-
-      response =
-        conn
-        |> post(burger_path(conn, :create), params)
-        |> json_response(422)
-
-      assert response["error"] =~ ~r/Burger with id: (.*) already exists/
-    end
   end
 end

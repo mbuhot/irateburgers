@@ -14,12 +14,7 @@ defmodule Irateburgers.ReviewBurger do
   end
 
   def new(params) do
-    params =
-      params
-      |> Map.put_new("id", Ecto.UUID.generate())
-      |> Map.put_new("created_at", DateTime.utc_now())
-
-    case changeset(%ReviewBurger{}, params) do
+    case changeset(%ReviewBurger{}, Map.new(params)) do
       cs = %{valid?: true} -> {:ok, Changeset.apply_changes(cs)}
       cs -> {:error, cs}
     end
@@ -27,7 +22,9 @@ defmodule Irateburgers.ReviewBurger do
 
   def changeset(struct, params) do
     struct
-    |> Changeset.cast(params, [:id, :burger_id, :username, :rating, :comment, :created_at])
+    |> Changeset.cast(params, [:burger_id, :username, :rating, :comment])
+    |> Changeset.put_change(:id, Ecto.UUID.generate())
+    |> Changeset.put_change(:created_at, DateTime.utc_now())
     |> Changeset.validate_required([:id, :burger_id, :username, :rating, :comment, :created_at])
   end
 
@@ -48,8 +45,7 @@ defmodule Irateburgers.ReviewBurger do
       %Review{} -> {:error, :user_already_reviewed}
     end
   end
-  def execute(command = %ReviewBurger{burger_id: burger_id},
-              burger = %Burger{id: burger_id, version: 0}) do
+  def execute(%ReviewBurger{burger_id: burger_id}, %Burger{id: burger_id, version: 0}) do
     {:error, :burger_not_found}
   end
 end

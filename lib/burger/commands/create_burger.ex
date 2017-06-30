@@ -13,7 +13,7 @@ defmodule Irateburgers.CreateBurger do
   end
 
   def new(params) do
-    case changeset(%CreateBurger{}, Map.put_new(params, "id", Ecto.UUID.generate())) do
+    case changeset(%CreateBurger{}, Map.new(params)) do
       cs = %{valid?: true} -> {:ok, Ecto.Changeset.apply_changes(cs)}
       cs -> {:error, cs}
     end
@@ -21,7 +21,8 @@ defmodule Irateburgers.CreateBurger do
 
   def changeset(struct, params) do
     struct
-    |> Changeset.cast(params, [:id, :name, :price, :description, :images])
+    |> Changeset.cast(params, [:name, :price, :description, :images])
+    |> Changeset.put_change(:id, Ecto.UUID.generate())
     |> Changeset.validate_required([:id, :name, :price, :description])
   end
 
