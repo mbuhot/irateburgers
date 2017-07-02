@@ -3,6 +3,8 @@ defmodule Irateburgers.Review do
   alias Irateburgers.Review
   alias Ecto.Changeset
 
+  @derive {Poison.Encoder, except: [:__meta__]}
+
   @primary_key false
   embedded_schema do
     field :id, :binary_id
@@ -23,15 +25,5 @@ defmodule Irateburgers.Review do
     struct
     |> Changeset.cast(params, [:id, :username, :rating, :comment, :created_at])
     |> Changeset.validate_required([:id, :username, :rating, :created_at])
-  end
-
-  def serialize(review = %Review{}) do
-    %{
-      id: review.id,
-      username: review.username,
-      rating: review.rating,
-      comment: review.comment,
-      created_at: review.created_at
-    }
   end
 end

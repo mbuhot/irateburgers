@@ -42,6 +42,6 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlug do
   end
 
   def respond(conn = %Conn{assigns: %{review: review = %Review{}}}, _opts) do
-    Conn.send_resp(conn, 201, Poison.encode! Review.serialize(review))
+    Conn.send_resp(conn, 201, Poison.encode!(review))
   end
 end
