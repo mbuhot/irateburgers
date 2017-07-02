@@ -19,13 +19,13 @@ defmodule Irateburgers.Aggregate do
   @doc """
   Build a via-tuple that can be used to message an aggregate GenServer using the Registry
   """
-  def via_tuple(id), do: {:via, Registry, {Irateburgers.Registry, id}}
+  def via_tuple(id), do: {:via, Registry, {Irateburgers.AggregateRegistry, id}}
 
   @doc """
   Finds Aggregate GenServer by id, or starts one using the given initial state and module.
   """
   def find_or_start(id, initial = %{id: id, version: 0}, server_module) do
-    case Registry.lookup(Irateburgers.Registry, id) do
+    case Registry.lookup(Irateburgers.AggregateRegistry, id) do
       [{pid, _}] when is_pid(pid) -> pid
       [] ->
         case GenServer.start_link(server_module, initial, name: via_tuple(id)) do

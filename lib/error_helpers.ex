@@ -1,4 +1,4 @@
-defmodule Irateburgers.Web.ErrorHelpers do
+defmodule Irateburgers.ErrorHelpers do
   @moduledoc """
   Conveniences for translating and building error messages.
   """

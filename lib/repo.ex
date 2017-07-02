@@ -8,4 +8,16 @@ defmodule Irateburgers.Repo do
   def init(_, opts) do
     {:ok, Keyword.put(opts, :url, System.get_env("DATABASE_URL"))}
   end
+
+  def stream_events(types: types, position: position) do
+    require Ecto.Query, as: Query
+    alias Irateburgers.Event
+
+    query =
+      Query.from e in Event,
+      where: e.type in ^(Enum.map(types, &to_string/1)),
+      where: e.id >= ^position
+
+    stream(query) |> Stream.map(&Event.to_struct/1)
+  end
 end

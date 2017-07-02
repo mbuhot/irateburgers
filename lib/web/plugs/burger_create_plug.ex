@@ -3,8 +3,6 @@ defmodule Irateburgers.Web.BurgerCreatePlug do
   import Plug.Conn, only: [put_resp_content_type: 2]
   alias Plug.Conn
   alias Irateburgers.{Burger, CreateBurger}
-  alias Irateburgers.Web.ErrorHelpers
-  alias Ecto.Changeset
 
   plug :put_resp_content_type, "application/json"
   plug :validate
@@ -16,9 +14,9 @@ defmodule Irateburgers.Web.BurgerCreatePlug do
     with {:ok, command = %CreateBurger{}} <- CreateBurger.new(conn.params) do
       Conn.assign conn, :command, command
     else
-      {:error, changeset = %Changeset{}} ->
+      {:error, errors} ->
         conn
-        |> Conn.send_resp(422, Poison.encode! ErrorHelpers.errors_on(changeset))
+        |> Conn.send_resp(422, Poison.encode! errors)
         |> Conn.halt()
     end
   end

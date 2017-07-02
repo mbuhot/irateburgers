@@ -34,8 +34,8 @@ defmodule Irateburgers.Web do
       import Phoenix.Controller, only: [get_csrf_token: 0, get_flash: 2, view_module: 1]
 
       import Irateburgers.Web.Router.Helpers
-      import Irateburgers.Web.ErrorHelpers
       import Irateburgers.Web.Gettext
+      import Irateburgers.ErrorHelpers
     end
   end
 

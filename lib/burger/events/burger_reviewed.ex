@@ -1,11 +1,12 @@
 defmodule Irateburgers.BurgerReviewed do
   use Ecto.Schema
   alias Ecto.Changeset
-  alias Irateburgers.{Burger, Event, Review, BurgerReviewed}
+  alias Irateburgers.{Burger, BurgerReviewed, ErrorHelpers, Event, Review}
 
   @primary_key false
   embedded_schema do
-    field :id, :binary_id
+    field :id, :integer
+    field :review_id, :binary_id
     field :burger_id, :binary_id
     field :version, :integer
     field :username, :string
@@ -17,20 +18,20 @@ defmodule Irateburgers.BurgerReviewed do
   def new(params) do
     case changeset(%BurgerReviewed{}, Map.new(params)) do
       cs = %{valid?: true} -> {:ok, Ecto.Changeset.apply_changes(cs)}
-      cs -> {:error, cs}
+      cs -> {:error, ErrorHelpers.errors_on(cs)}
     end
   end
 
   def changeset(struct, params) do
     struct
-    |> Changeset.cast(params, [:id, :burger_id, :version, :username, :rating, :comment, :created_at])
-    |> Changeset.validate_required([:id, :burger_id, :version, :username, :rating, :created_at])
+    |> Changeset.cast(params, [:id, :review_id, :burger_id, :version, :username, :rating, :comment, :created_at])
+    |> Changeset.validate_required([:review_id, :burger_id, :version, :username, :rating, :created_at])
   end
 
   def apply(event = %BurgerReviewed{burger_id: id, version: m},
             burger = %Burger{id: id, version: n, reviews: reviews}) when m == (n+1) do
     {:ok, review} = Review.new(
-      id: event.id,
+      id: event.review_id,
       username: event.username,
       rating: event.rating,
       comment: event.comment,
@@ -45,7 +46,7 @@ defmodule Irateburgers.BurgerReviewed do
       sequence: event.version,
       type: to_string(__MODULE__),
       payload: %{
-        id: event.id,
+        review_id: event.review_id,
         username: event.username,
         rating: event.rating,
         comment: event.comment,
@@ -59,7 +60,7 @@ defmodule Irateburgers.BurgerReviewed do
       BurgerReviewed.new(
         Map.merge(
           event.payload,
-          %{"burger_id" => event.aggregate, "version" => event.sequence}))
+          %{"id" => event.id, "burger_id" => event.aggregate, "version" => event.sequence}))
 
     domain_event
   end

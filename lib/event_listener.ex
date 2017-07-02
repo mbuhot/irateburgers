@@ -6,7 +6,7 @@ defmodule Irateburgers.EventListener do
   Starts an EventListener GenServer process
   """
   def start_link() do
-    GenServer.start_link(__MODULE__, nil)
+    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
   @doc """
@@ -17,7 +17,7 @@ defmodule Irateburgers.EventListener do
     pg_config = Application.get_env(:irateburgers, Irateburgers.Repo)
     {:ok, pid} = Postgrex.Notifications.start_link(pg_config)
     {:ok, ref} = Postgrex.Notifications.listen(pid, channel)
-    {:ok, {pid, ref, channel}}
+    {:ok, %{notifications_pid: pid, notifications_ref: ref, notifications_channel: channel}}
   end
 
   @doc """
@@ -25,18 +25,21 @@ defmodule Irateburgers.EventListener do
 
   If a matching Aggregate GenServer is running, it will be notified of the event, otherwise the event is ignored.
   """
-  def handle_info({:notification, pid, ref, channel, payload}, state = {pid, ref, channel}) do
-    %{"id" => id, "aggregate" => aggregate_id} = Poison.decode!(payload)
-    case Registry.lookup(Irateburgers.Registry, aggregate_id) do
-      [{pid, _}] when is_pid(pid) ->
-        event = Event |> Repo.get(id) |> Event.to_struct()
-        send(pid, {:event, event})
-      [] ->
-        nil
-    end
+  def handle_info({:notification, _pid, _ref, _channel, payload}, state = %{}) do
+    %{"id" => id, "aggregate" => aggregate_id, "type" => type} = Poison.decode!(payload)
+
+    {for_event, _} = Registry.lookup(Irateburgers.EventListenerRegistry, String.to_existing_atom(type)) |> Enum.unzip()
+    {for_aggregate, _} = Registry.lookup(Irateburgers.AggregateRegistry, aggregate_id) |> Enum.unzip()
+    send_event_to_subscribers(id, for_aggregate ++ for_event)
     {:noreply, state}
   end
   def handle_info(_msg, state) do
     {:noreply, state}
+  end
+
+  def send_event_to_subscribers(_event_id, []), do: :ok
+  def send_event_to_subscribers(event_id, pids) when is_integer(event_id) and is_list(pids) do
+    event = Event |> Repo.get(event_id) |> Event.to_struct()
+    Enum.each(pids, &GenServer.cast(&1, {:event, event}))
   end
 end

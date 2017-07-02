@@ -15,7 +15,7 @@ defmodule Irateburgers.CreateBurger do
   def new(params) do
     case changeset(%CreateBurger{}, Map.new(params)) do
       cs = %{valid?: true} -> {:ok, Ecto.Changeset.apply_changes(cs)}
-      cs -> {:error, cs}
+      cs -> {:error, Irateburgers.ErrorHelpers.errors_on(cs)}
     end
   end
 
@@ -28,7 +28,7 @@ defmodule Irateburgers.CreateBurger do
 
   def execute(command = %CreateBurger{id: id}, burger = %Burger{id: id, version: 0}) do
     event = %BurgerCreated{
-      id: id,
+      burger_id: id,
       version: burger.version + 1,
       name: command.name,
       price: command.price,

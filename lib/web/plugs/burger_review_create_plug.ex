@@ -16,9 +16,9 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlug do
     with {:ok, command = %ReviewBurger{}} <- ReviewBurger.new(Map.put(conn.params, "burger_id", conn.params["id"])) do
       Conn.assign conn, :command, command
     else
-      {:error, changeset = %Changeset{}} ->
+      {:error, errors} ->
         conn
-        |> Conn.send_resp(422, Poison.encode! ErrorHelpers.errors_on(changeset))
+        |> Conn.send_resp(422, Poison.encode! errors)
         |> Conn.halt()
     end
   end

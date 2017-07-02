@@ -1,6 +1,5 @@
 defmodule Irateburgers.Command do
-  alias Irateburgers.{Aggregate, Event, Repo}
-  alias Irateburgers.Web.ErrorHelpers
+  alias Irateburgers.{Aggregate, ErrorHelpers, Event, Repo}
   alias Ecto.Changeset
 
   @doc """

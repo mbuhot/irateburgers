@@ -20,4 +20,5 @@ defmodule Irateburgers.Event do
   def apply(event, aggregate) do
     event.__struct__.apply(event, aggregate)
   end
+
 end

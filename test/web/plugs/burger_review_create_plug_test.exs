@@ -6,7 +6,7 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlugTest do
   describe "Reviewing a Burger" do
     setup %{conn: conn} do
       id = Ecto.UUID.generate()
-      {:ok, event} = BurgerCreated.new(id: id, version: 1, name: "Whopper", price: "$4.95", description: "huge")
+      {:ok, event} = BurgerCreated.new(burger_id: id, version: 1, name: "Whopper", price: "$4.95", description: "huge")
       Repo.insert!(BurgerCreated.to_eventlog(event))
 
       conn = Conn.put_req_header(conn, "content-type", "application/json")
