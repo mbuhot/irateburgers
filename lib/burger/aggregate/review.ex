@@ -1,4 +1,8 @@
 defmodule Irateburgers.Review do
+  @doc """
+  A burger review.
+  """
+
   use Ecto.Schema
   alias Irateburgers.Review
   alias Ecto.Changeset

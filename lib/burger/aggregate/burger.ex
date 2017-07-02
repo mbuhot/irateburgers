@@ -1,4 +1,8 @@
 defmodule Irateburgers.Burger do
+  @doc """
+  A burger with some attributes that can be reviewed.
+  """
+
   use Ecto.Schema
   alias Irateburgers.{Burger, Review}
 
