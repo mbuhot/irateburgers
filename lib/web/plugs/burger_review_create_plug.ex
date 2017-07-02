@@ -3,8 +3,6 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlug do
   import Plug.Conn, only: [put_resp_content_type: 2]
   alias Plug.Conn
   alias Irateburgers.{Burger, Review, ReviewBurger}
-  alias Irateburgers.Web.ErrorHelpers
-  alias Ecto.Changeset
 
   plug :put_resp_content_type, "application/json"
   plug :validate

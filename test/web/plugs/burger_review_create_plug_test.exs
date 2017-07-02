@@ -1,13 +1,13 @@
 defmodule Irateburgers.Web.BurgerReviewCreatePlugTest do
   use Irateburgers.Web.ConnCase
   alias Plug.Conn
-  alias Irateburgers.{BurgerCreated, Repo}
+  alias Irateburgers.{BurgerCreated, Event, Repo}
 
   describe "Reviewing a Burger" do
     setup %{conn: conn} do
       id = Ecto.UUID.generate()
       {:ok, event} = BurgerCreated.new(burger_id: id, version: 1, name: "Whopper", price: "$4.95", description: "huge")
-      Repo.insert!(BurgerCreated.to_eventlog(event))
+      Repo.insert!(Event.from_struct(event))
 
       conn = Conn.put_req_header(conn, "content-type", "application/json")
       %{conn: conn, burger_id: id}

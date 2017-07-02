@@ -1,5 +1,5 @@
 defmodule Irateburgers.Command do
-  alias Irateburgers.{Aggregate, ErrorHelpers, Event, Repo}
+  alias Irateburgers.{Aggregate, CommandProtocol, ErrorHelpers, Event, Repo}
   alias Ecto.Changeset
 
   @doc """
@@ -9,7 +9,7 @@ defmodule Irateburgers.Command do
   def execute(command, aggregate = %{id: id}) do
     Repo.transaction fn ->
       Repo.query("SELECT pg_advisory_xact_lock($1)", [:erlang.phash2(id)])
-      with {:ok, events} <- command.__struct__.execute(command, aggregate),
+      with {:ok, events} <- CommandProtocol.execute(command, aggregate),
            :ok <- log_events(events) do
         Aggregate.apply_events(aggregate, events)
       else
@@ -25,7 +25,7 @@ defmodule Irateburgers.Command do
   # Converts domain event structs to database events and save to the events table
   defp log_events([]), do: :ok
   defp log_events([event | rest]) do
-    db_event = event.__struct__.to_eventlog(event)
+    db_event = Event.from_struct(event)
     with {:ok, _} <- insert_event(db_event) do
       log_events(rest)
     end

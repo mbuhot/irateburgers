@@ -1,7 +1,7 @@
 defmodule Irateburgers.CreateBurger do
   use Ecto.Schema
   alias Ecto.Changeset
-  alias Irateburgers.{Burger, BurgerCreated, CreateBurger}
+  alias Irateburgers.{Burger, BurgerCreated, CreateBurger, CommandProtocol}
 
   @primary_key false
   embedded_schema do
@@ -26,18 +26,20 @@ defmodule Irateburgers.CreateBurger do
     |> Changeset.validate_required([:id, :name, :price, :description])
   end
 
-  def execute(command = %CreateBurger{id: id}, burger = %Burger{id: id, version: 0}) do
-    event = %BurgerCreated{
-      burger_id: id,
-      version: burger.version + 1,
-      name: command.name,
-      price: command.price,
-      description: command.description,
-      images: command.images
-    }
-    {:ok, [event]}
-  end
-  def execute(%CreateBurger{id: id}, %Burger{id: id, version: n}) when (n > 0) do
-    {:error, :burger_already_exists}
+  defimpl CommandProtocol do
+    def execute(command = %CreateBurger{id: id}, burger = %Burger{id: id, version: 0}) do
+      event = %BurgerCreated{
+        burger_id: id,
+        version: burger.version + 1,
+        name: command.name,
+        price: command.price,
+        description: command.description,
+        images: command.images
+      }
+      {:ok, [event]}
+    end
+    def execute(%CreateBurger{id: id}, %Burger{id: id, version: n}) when (n > 0) do
+      {:error, :burger_already_exists}
+    end
   end
 end

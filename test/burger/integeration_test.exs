@@ -17,7 +17,7 @@ defmodule IntegrationTest do
       review_id: Ecto.UUID.generate(),
       username: "m",
       version: 2)
-    Repo.insert!(BurgerReviewed.to_eventlog(event))
+    Repo.insert!(BurgerReviewed.to_event_log(event))
     Process.sleep(500)
     IO.inspect(BurgerServer.get_burger(burger.id))
     IO.inspect(TopBurgers.Server.top_burgers(5))

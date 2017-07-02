@@ -1,7 +1,7 @@
 defmodule Irateburgers.BurgerReviewed do
   use Ecto.Schema
   alias Ecto.Changeset
-  alias Irateburgers.{Burger, BurgerReviewed, ErrorHelpers, Event, Review}
+  alias Irateburgers.{Burger, BurgerReviewed, ErrorHelpers, Event, EventProtocol, Review}
 
   @primary_key false
   embedded_schema do
@@ -28,31 +28,33 @@ defmodule Irateburgers.BurgerReviewed do
     |> Changeset.validate_required([:review_id, :burger_id, :version, :username, :rating, :created_at])
   end
 
-  def apply(event = %BurgerReviewed{burger_id: id, version: m},
-            burger = %Burger{id: id, version: n, reviews: reviews}) when m == (n+1) do
-    {:ok, review} = Review.new(
-      id: event.review_id,
-      username: event.username,
-      rating: event.rating,
-      comment: event.comment,
-      created_at: event.created_at)
-
-    %{burger | version: event.version, reviews: [review | reviews]}
-  end
-
-  def to_eventlog(event = %BurgerReviewed{}) do
-    %Event{
-      aggregate: event.burger_id,
-      sequence: event.version,
-      type: to_string(__MODULE__),
-      payload: %{
-        review_id: event.review_id,
+  defimpl EventProtocol do
+    def apply(event = %BurgerReviewed{burger_id: id, version: m},
+              burger = %Burger{id: id, version: n, reviews: reviews}) when m == (n+1) do
+      {:ok, review} = Review.new(
+        id: event.review_id,
         username: event.username,
         rating: event.rating,
         comment: event.comment,
-        created_at: event.created_at
+        created_at: event.created_at)
+
+      %{burger | version: event.version, reviews: [review | reviews]}
+    end
+
+    def to_event_log(event = %BurgerReviewed{}) do
+      %Event{
+        aggregate: event.burger_id,
+        sequence: event.version,
+        type: to_string(Irateburgers.BurgerReviewed),
+        payload: %{
+          review_id: event.review_id,
+          username: event.username,
+          rating: event.rating,
+          comment: event.comment,
+          created_at: event.created_at
+        }
       }
-    }
+    end
   end
 
   def from_event_log(event = %Event{}) do

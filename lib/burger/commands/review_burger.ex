@@ -1,7 +1,7 @@
 defmodule Irateburgers.ReviewBurger do
   use Ecto.Schema
   alias Ecto.Changeset
-  alias Irateburgers.{Burger, BurgerReviewed, ErrorHelpers, Review, ReviewBurger}
+  alias Irateburgers.{Burger, BurgerReviewed, CommandProtocol, ErrorHelpers, Review, ReviewBurger}
 
   @primary_key false
   embedded_schema do
@@ -28,24 +28,26 @@ defmodule Irateburgers.ReviewBurger do
     |> Changeset.validate_required([:review_id, :burger_id, :username, :rating, :comment, :created_at])
   end
 
-  def execute(command = %ReviewBurger{burger_id: burger_id},
-              burger = %Burger{id: burger_id, version: n}) when (n > 0) do
-    with nil <- Burger.find_review_by_user(burger, command.username) do
-      {:ok, event} = BurgerReviewed.new(
-        review_id: command.review_id,
-        burger_id: burger_id,
-        version: burger.version + 1,
-        username: command.username,
-        rating: command.rating,
-        comment: command.comment,
-        created_at: command.created_at)
+  defimpl CommandProtocol do
+    def execute(command = %ReviewBurger{burger_id: burger_id},
+                burger = %Burger{id: burger_id, version: n}) when (n > 0) do
+      with nil <- Burger.find_review_by_user(burger, command.username) do
+        {:ok, event} = BurgerReviewed.new(
+          review_id: command.review_id,
+          burger_id: burger_id,
+          version: burger.version + 1,
+          username: command.username,
+          rating: command.rating,
+          comment: command.comment,
+          created_at: command.created_at)
 
-      {:ok, [event]}
-    else
-      %Review{} -> {:error, :user_already_reviewed}
+        {:ok, [event]}
+      else
+        %Review{} -> {:error, :user_already_reviewed}
+      end
     end
-  end
-  def execute(%ReviewBurger{burger_id: burger_id}, %Burger{id: burger_id, version: 0}) do
-    {:error, :burger_not_found}
+    def execute(%ReviewBurger{burger_id: burger_id}, %Burger{id: burger_id, version: 0}) do
+      {:error, :burger_not_found}
+    end
   end
 end
