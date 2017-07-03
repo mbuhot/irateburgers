@@ -1,7 +1,7 @@
 defmodule Irateburgers.CreateBurger do
   use Ecto.Schema
   alias Ecto.Changeset
-  alias Irateburgers.{Burger, BurgerCreated, CreateBurger, CommandProtocol}
+  alias Irateburgers.{Burger, BurgerCreated, CreateBurger, CommandProtocol, ErrorHelpers}
 
   @primary_key false
   embedded_schema do
@@ -14,8 +14,8 @@ defmodule Irateburgers.CreateBurger do
 
   def new(params) do
     case changeset(%CreateBurger{}, Map.new(params)) do
-      cs = %{valid?: true} -> {:ok, Ecto.Changeset.apply_changes(cs)}
-      cs -> {:error, Irateburgers.ErrorHelpers.errors_on(cs)}
+      cs = %{valid?: true} -> {:ok, Changeset.apply_changes(cs)}
+      cs -> {:error, ErrorHelpers.errors_on(cs)}
     end
   end
 

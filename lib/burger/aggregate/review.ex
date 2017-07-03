@@ -4,7 +4,7 @@ defmodule Irateburgers.Review do
   """
 
   use Ecto.Schema
-  alias Irateburgers.Review
+  alias Irateburgers.{ErrorHelpers, Review}
   alias Ecto.Changeset
 
   @derive {Poison.Encoder, except: [:__meta__]}
@@ -20,14 +20,14 @@ defmodule Irateburgers.Review do
 
   def new(params) do
     case changeset(%Review{}, Map.new(params)) do
-      cs = %{valid?: true} -> {:ok, Ecto.Changeset.apply_changes(cs)}
-      cs -> {:error, cs}
+      cs = %{valid?: true} -> {:ok, Changeset.apply_changes(cs)}
+      cs -> {:error, ErrorHelpers.errors_on(cs)}
     end
   end
 
   def changeset(struct, params) do
     struct
-    |> Changeset.cast(params, [:id, :username, :rating, :comment, :created_at])
+    |> Changeset.cast(params, __schema__(:fields))
     |> Changeset.validate_required([:id, :username, :rating, :created_at])
   end
 end

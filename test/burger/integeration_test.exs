@@ -14,7 +14,7 @@ defmodule IntegrationTest do
     {:ok, event} = BurgerReviewed.new(
       burger_id: burger.id,
       created_at: DateTime.utc_now(),
-      rating: 6,
+      rating: 16,
       review_id: Ecto.UUID.generate(),
       username: "m",
       version: 2)

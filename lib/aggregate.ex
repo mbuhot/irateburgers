@@ -1,25 +1,6 @@
 defmodule Irateburgers.Aggregate do
-  alias Irateburgers.{Event, Repo}
+  alias Irateburgers.{Command, Event, Repo}
   require Ecto.Query, as: Query
-
-  @doc """
-  Initialize an aggregate from events in the Repo
-  """
-  def init(aggregate = %{id: id, version: version}) do
-    db_events = Repo.all(
-      Query.from e in Event,
-      where: e.aggregate == ^id,
-      where: e.sequence > ^version,
-      order_by: {:asc, e.sequence})
-
-    events = Enum.map(db_events, &Event.to_struct/1)
-    apply_events(aggregate, events)
-  end
-
-  @doc """
-  Build a via-tuple that can be used to message an aggregate process using the Registry
-  """
-  def via_tuple(id), do: {:via, Registry, {Irateburgers.AggregateRegistry, id}}
 
   @doc """
   Finds Aggregate process by id, or starts one using the given initial state and module.
@@ -30,16 +11,30 @@ defmodule Irateburgers.Aggregate do
       [] ->
         case start_agent(id, initial) do
           {:ok, pid} -> pid
-          {:error, :already_registered, pid} -> pid
+          {:error, {:already_started, pid}} -> pid
         end
     end
   end
 
+  # Start an aggregate agent, registering it in Irateburgers.AggregateRegistry under key: id
   defp start_agent(id, initial_state) do
-    Agent.start_link(fn ->
-      Registry.register(Irateburgers.AggregateRegistry, id, &ensure_event_applied/2)
-      init(initial_state)
-    end)
+    Agent.start(fn ->
+        Registry.update_value(Irateburgers.AggregateRegistry, id, fn _ -> &ensure_event_applied/2 end)
+        init(initial_state)
+      end,
+      name: {:via, Registry, {Irateburgers.AggregateRegistry, id}})
+  end
+
+  #Initialize an aggregate from events in the Repo
+  defp init(aggregate = %{id: id, version: version}) do
+    db_events = Repo.all(
+      Query.from e in Event,
+      where: e.aggregate == ^id,
+      where: e.sequence > ^version,
+      order_by: {:asc, e.sequence})
+
+    events = Enum.map(db_events, &Event.to_struct/1)
+    apply_events(aggregate, events)
   end
 
   @doc """
@@ -61,5 +56,23 @@ defmodule Irateburgers.Aggregate do
   """
   def apply_events(aggregate, events) when is_list(events) do
     Enum.reduce(events, aggregate, &Event.apply/2)
+  end
+
+  @doc """
+  Dispatch a command to an Agent PID.
+
+  If the command is successful, updates the agent state and returns {:ok, state}
+  If the command fails, returns {:error, reason} leaving the agent state unchanged
+  """
+  def dispatch_command(pid, command = %{}) when is_pid(pid) do
+    Agent.get_and_update pid, fn state ->
+      with {:ok, events} <- Command.execute(command, state) do
+        new_state = apply_events(state, events)
+        {{:ok, new_state}, new_state}
+      else
+        {:error, reason} ->
+          {{:error, reason}, state}
+      end
+    end
   end
 end

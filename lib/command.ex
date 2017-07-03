@@ -1,17 +1,17 @@
 defmodule Irateburgers.Command do
-  alias Irateburgers.{Aggregate, CommandProtocol, ErrorHelpers, Event, Repo}
+  alias Irateburgers.{CommandProtocol, ErrorHelpers, Event, Repo}
   alias Ecto.Changeset
 
   @doc """
   Execute a command against an aggregate, commiting the resulting events to the event log.
-  Returns {:ok, updated_aggregate} on success, or {:error, reason} otherwise.
+  Returns {:ok, events} on success, or {:error, reason} otherwise.
   """
   def execute(command, aggregate = %{id: id}) do
     Repo.transaction fn ->
       Repo.query("SELECT pg_advisory_xact_lock($1)", [:erlang.phash2(id)])
       with {:ok, events} <- CommandProtocol.execute(command, aggregate),
            :ok <- log_events(events) do
-        Aggregate.apply_events(aggregate, events)
+        events
       else
         {:error, changeset = %Changeset{}} ->
           Repo.rollback(ErrorHelpers.errors_on(changeset))
