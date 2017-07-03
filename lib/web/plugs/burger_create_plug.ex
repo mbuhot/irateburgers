@@ -42,6 +42,6 @@ defmodule Irateburgers.Web.BurgerCreatePlug do
   end
 
   def respond(conn = %Conn{assigns: %{burger: burger = %Burger{}}}, _opts) do
-    Conn.send_resp(conn, 201, Poison.encode! Burger.serialize(burger))
+    Conn.send_resp(conn, 201, Poison.encode!(burger))
   end
 end

@@ -1,9 +1,10 @@
 defmodule IntegrationTest do
   alias Irateburgers.{
-    Repo,
-    CreateBurger,
     BurgerReviewed,
     BurgerServer,
+    CreateBurger,
+    Event,
+    Repo,
     TopBurgers
   }
 
@@ -13,11 +14,11 @@ defmodule IntegrationTest do
     {:ok, event} = BurgerReviewed.new(
       burger_id: burger.id,
       created_at: DateTime.utc_now(),
-      rating: 3,
+      rating: 6,
       review_id: Ecto.UUID.generate(),
       username: "m",
       version: 2)
-    Repo.insert!(BurgerReviewed.to_event_log(event))
+    Repo.insert!(Event.from_struct(event))
     Process.sleep(500)
     IO.inspect(BurgerServer.get_burger(burger.id))
     IO.inspect(TopBurgers.Server.top_burgers(5))

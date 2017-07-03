@@ -13,6 +13,7 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlugTest do
       %{conn: conn, burger_id: id}
     end
 
+    @tag :focus
     test "Succeeds with valid parameters", %{conn: conn, burger_id: id} do
       review_params = Poison.encode! %{
         username: "Flipper",

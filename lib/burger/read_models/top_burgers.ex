@@ -46,7 +46,6 @@ defmodule Irateburgers.TopBurgers do
     """
 
     use Ecto.Schema
-    alias Ecto.Changeset
     alias Irateburgers.{BurgerCreated, BurgerReviewed}
     alias Irateburgers.TopBurgers.{Record, Model}
 
@@ -57,6 +56,12 @@ defmodule Irateburgers.TopBurgers do
       embeds_many :by_rating, Record
     end
 
+    # Ignore events that were already procesed when the model was initialized
+    def apply_event(model = %Model{last_event_id: n},
+                   _event = %{id: m}) when is_integer(m) and is_integer(m) and m <= n do
+      model
+    end
+
     # Add a new new burger record to the model, initially has no reviews
     def apply_event(model = %Model{}, %BurgerCreated{burger_id: id, name: name, version: version}) do
       {:ok, record} = Record.new(burger_id: id, name: name, version: version, average_rating: 0, num_reviews: 0)
@@ -64,9 +69,13 @@ defmodule Irateburgers.TopBurgers do
     end
 
     # Update the average rating for a burger after being reviewed
-    def apply_event(model = %Model{}, event = %BurgerReviewed{}) do
-      burger = %Record{} = find_burger(model, event.burger_id)
-      update_average_rating(model, burger, event)
+    def apply_event(model = %Model{}, event = %BurgerReviewed{burger_id: burger_id}) do
+      new_burger =
+        model
+        |> find_burger(burger_id)
+        |> update_average_rating(event.rating)
+
+      %{model | by_id: Map.put(model.by_id, burger_id, new_burger), by_rating: nil}
     end
 
     @doc """
@@ -74,14 +83,6 @@ defmodule Irateburgers.TopBurgers do
     """
     def find_burger(model = %Model{}, burger_id) when is_binary(burger_id) do
       model.by_id[burger_id]
-    end
-
-    @doc """
-    Updates the model such that the given burger has the given `BurgerReviewed` event applied.
-    """
-    def update_average_rating(model = %Model{}, burger = %Record{}, event = %BurgerReviewed{}) do
-      new_burger = update_average_rating(burger, event.rating)
-      %{model | by_id: Map.put(model.by_id, burger.burger_id, new_burger), by_rating: nil}
     end
 
     # Update the given burger record to include a new review with given rating
@@ -95,14 +96,14 @@ defmodule Irateburgers.TopBurgers do
 
     @doc """
     Sorts the burger records by rating if necessary and takes the top `count`
-    return {new_model, records} so the sorting can be cached by TopBurgers.Server
+    return {records, new_model} so the sorting can be cached by TopBurgers.Server
     """
     def top_burgers(model = %Model{by_rating: nil}, count) when is_integer(count) do
       new_model = sort_by_rating(model)
       top_burgers(new_model, count)
     end
     def top_burgers(model = %Model{by_rating: records}, count) when is_list(records) and is_integer(count) do
-      {model, Enum.take(records, count)}
+      {Enum.take(records, count), model}
     end
 
     # Sorts the burger records by average_rating descending, updates `model.by_rating` with the result
@@ -117,57 +118,39 @@ defmodule Irateburgers.TopBurgers do
   end
 
   defmodule Server do
-    @doc """"
-    This GenServer module maintains the state of the TopBurgers, and listens for events.
+    @moduledoc """
+    This process maintains the state of the TopBurgers, and listens for events.
 
     On initialization, it reads all relevant past events from the global event log.
     """
 
-    use GenServer
     alias Irateburgers.{BurgerCreated, BurgerReviewed, Repo}
     alias Irateburgers.TopBurgers.Model
 
     def start_link() do
-      GenServer.start_link(__MODULE__, %Model{}, name: __MODULE__)
+      Agent.start_link(&init/0, name: __MODULE__)
     end
 
-    # Register this GenServer in the `EventListenerRegistry` for new events, and stream in the history of past events.
+    # Register this processs in the `EventListenerRegistry` for new events, and stream in the history of past events.
     # TODO: a better approach would be:
     #  1. n = Query database for last event id
     #  2. Register for events
     #  3. Query all events from 0 .. n, guarenteeing that there is no overlap between the query and the notifications
-    def init(model = %Model{}) do
-      Registry.register(Irateburgers.EventListenerRegistry, BurgerCreated, nil)
-      Registry.register(Irateburgers.EventListenerRegistry, BurgerReviewed, nil)
+    def init() do
+      Registry.register(Irateburgers.EventListenerRegistry, BurgerCreated, &Model.apply_event/2)
+      Registry.register(Irateburgers.EventListenerRegistry, BurgerReviewed, &Model.apply_event/2)
       {:ok, model} = Repo.transaction(fn ->
         events = Repo.stream_events(types: [BurgerCreated, BurgerReviewed], position: 0)
-        Enum.reduce(events, model, fn x, acc -> Model.apply_event(acc, x) end)
+        Enum.reduce(events, %Model{}, fn x, acc -> Model.apply_event(acc, x) end)
       end)
-
-      {:ok, model}
+      model
     end
 
     @doc """
     Get the top `count` burgers by average rating
     """
     def top_burgers(count) when is_integer(count) do
-      GenServer.call(__MODULE__, {:top_burgers, count})
-    end
-
-    # delegate the `top_burgers` query to the Model
-    def handle_call({:top_burgers, count}, _from, model = %Model{}) when is_integer(count) do
-      {new_model, result} = Model.top_burgers(model, count)
-      {:reply, result, new_model}
-    end
-
-    # Apply a new event to the model if the model has not already consumed past that point in the event log.
-    def handle_cast({:event, event = %{id: id}},
-                    state = %Model{last_event_id: last_event_id}) when (last_event_id < id) do
-      new_state = Model.apply_event(state, event)
-      {:noreply, new_state}
-    end
-    def handle_cast(_msg, state) do
-      {:noreply, state}
+      Agent.get_and_update(__MODULE__, &Model.top_burgers(&1, count))
     end
   end
 end

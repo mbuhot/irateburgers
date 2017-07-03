@@ -23,13 +23,13 @@ defmodule Irateburgers.EventListener do
   @doc """
   Handle messages received from Postgres.Notifications
 
-  If a matching Aggregate GenServer is running, it will be notified of the event, otherwise the event is ignored.
+  Events are sent to aggregates and event listeners
   """
   def handle_info({:notification, _pid, _ref, _channel, payload}, state = %{}) do
     %{"id" => id, "aggregate" => aggregate_id, "type" => type} = Poison.decode!(payload)
 
-    {for_event, _} = Registry.lookup(Irateburgers.EventListenerRegistry, String.to_existing_atom(type)) |> Enum.unzip()
-    {for_aggregate, _} = Registry.lookup(Irateburgers.AggregateRegistry, aggregate_id) |> Enum.unzip()
+    for_event = Registry.lookup(Irateburgers.EventListenerRegistry, String.to_existing_atom(type))
+    for_aggregate = Registry.lookup(Irateburgers.AggregateRegistry, aggregate_id)
     send_event_to_subscribers(id, for_aggregate ++ for_event)
     {:noreply, state}
   end
@@ -40,6 +40,10 @@ defmodule Irateburgers.EventListener do
   def send_event_to_subscribers(_event_id, []), do: :ok
   def send_event_to_subscribers(event_id, pids) when is_integer(event_id) and is_list(pids) do
     event = Event |> Repo.get(event_id) |> Event.to_struct()
-    Enum.each(pids, &GenServer.cast(&1, {:event, event}))
+    Enum.each(pids, fn {pid, update_fn} ->
+      Agent.cast(pid, fn state ->
+        update_fn.(state, event)
+      end)
+    end)
   end
 end
