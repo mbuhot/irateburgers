@@ -1,7 +1,18 @@
 defmodule Irateburgers.BurgerReviewed do
+  @moduledoc """
+  Event raised following the `ReviewBurger` command being executed.
+  """
+
   use Ecto.Schema
   alias Ecto.Changeset
-  alias Irateburgers.{Burger, BurgerReviewed, ErrorHelpers, Event, EventProtocol, Review}
+  alias Irateburgers.{
+    Burger,
+    BurgerReviewed,
+    ErrorHelpers,
+    Event,
+    EventProtocol,
+    Review
+  }
 
   @primary_key false
   embedded_schema do
@@ -17,20 +28,23 @@ defmodule Irateburgers.BurgerReviewed do
 
   def new(params) do
     case changeset(%BurgerReviewed{}, Map.new(params)) do
-      cs = %{valid?: true} -> {:ok, Ecto.Changeset.apply_changes(cs)}
+      cs = %{valid?: true} -> {:ok, Changeset.apply_changes(cs)}
       cs -> {:error, ErrorHelpers.errors_on(cs)}
     end
   end
 
   def changeset(struct, params) do
     struct
-    |> Changeset.cast(params, [:id, :review_id, :burger_id, :version, :username, :rating, :comment, :created_at])
-    |> Changeset.validate_required([:review_id, :burger_id, :version, :username, :rating, :created_at])
+    |> Changeset.cast(params, __schema__(:fields))
+    |> Changeset.validate_required(__schema__(:fields) -- [:id])
   end
 
   defimpl EventProtocol do
-    def apply(event = %BurgerReviewed{burger_id: id, version: m},
-              burger = %Burger{id: id, version: n, reviews: reviews}) when m == (n+1) do
+    def apply(
+      event = %BurgerReviewed{burger_id: id, version: m},
+      burger = %Burger{id: id, version: n})
+    when m == (n + 1)
+    do
       {:ok, review} = Review.new(
         id: event.review_id,
         username: event.username,
@@ -38,7 +52,7 @@ defmodule Irateburgers.BurgerReviewed do
         comment: event.comment,
         created_at: event.created_at)
 
-      %{burger | version: event.version, reviews: [review | reviews]}
+      %{burger | version: event.version, reviews: [review | burger.reviews]}
     end
 
     def to_event_log(event = %BurgerReviewed{}) do
@@ -62,7 +76,11 @@ defmodule Irateburgers.BurgerReviewed do
       BurgerReviewed.new(
         Map.merge(
           event.payload,
-          %{"id" => event.id, "burger_id" => event.aggregate, "version" => event.sequence}))
+          %{
+            "id" => event.id,
+            "burger_id" => event.aggregate,
+            "version" => event.sequence
+          }))
 
     domain_event
   end

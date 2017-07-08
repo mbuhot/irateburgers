@@ -3,6 +3,8 @@ defmodule Irateburgers.ErrorHelpers do
   Conveniences for translating and building error messages.
   """
 
+  alias Ecto.Changeset
+
   @doc """
   Translates an error message using gettext.
   """
@@ -21,7 +23,8 @@ defmodule Irateburgers.ErrorHelpers do
     #     dgettext "errors", "is invalid"
     #
     if count = opts[:count] do
-      Gettext.dngettext(Irateburgers.Web.Gettext, "errors", msg, msg, count, opts)
+      Gettext.dngettext(
+        Irateburgers.Web.Gettext, "errors", msg, msg, count, opts)
     else
       Gettext.dgettext(Irateburgers.Web.Gettext, "errors", msg, opts)
     end
@@ -36,7 +39,7 @@ defmodule Irateburgers.ErrorHelpers do
 
   """
   def errors_on(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
+    Changeset.traverse_errors(changeset, fn {message, opts} ->
       Enum.reduce(opts, message, fn {key, value}, acc ->
         String.replace(acc, "%{#{key}}", to_string(value))
       end)

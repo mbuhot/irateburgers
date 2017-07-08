@@ -1,5 +1,5 @@
 defmodule Irateburgers.Web.Router do
-  use Irateburgers.Web, :router
+  use Phoenix.Router
 
   pipeline :api do
     plug :accepts, ["json"]
@@ -8,8 +8,10 @@ defmodule Irateburgers.Web.Router do
   scope "/api/v1", Irateburgers.Web do
     pipe_through :api
 
-    post "/burgers", BurgerCreatePlug, :create, as: :burger
-    get  "/burgers/:id", BurgerShowPlug, :show, as: :burger
-    post "/burgers/:id/reviews", BurgerReviewCreatePlug, :create, as: :burger_review
+    scope "/burgers" do
+      post "/", BurgerCreatePlug, :create, as: :burger
+      get  "/:id", BurgerShowPlug, :show, as: :burger
+      post "/:id/reviews", BurgerReviewCreatePlug, :create, as: :burger_review
+    end
   end
 end

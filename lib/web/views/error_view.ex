@@ -1,5 +1,6 @@
 defmodule Irateburgers.Web.ErrorView do
-  use Irateburgers.Web, :view
+  use Phoenix.View,
+    root: "lib/irateburgers/web/templates", namespace: Irateburgers.Web
 
   def render("404.json", _assigns) do
     %{errors: %{detail: "Page not found"}}

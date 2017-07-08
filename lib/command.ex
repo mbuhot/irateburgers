@@ -1,4 +1,8 @@
 defmodule Irateburgers.Command do
+  @moduledoc """
+  Handles locking and event persistence for command execution.
+  """
+
   alias Irateburgers.{CommandProtocol, ErrorHelpers, Event, Repo}
   alias Ecto.Changeset
 
@@ -22,7 +26,7 @@ defmodule Irateburgers.Command do
     end
   end
 
-  # Converts domain event structs to database events and save to the events table
+  # Converts domain event structs to database events and persists
   defp log_events([]), do: :ok
   defp log_events([event | rest]) do
     db_event = Event.from_struct(event)
@@ -31,12 +35,20 @@ defmodule Irateburgers.Command do
     end
   end
 
-  # Insert a database event struct in the events table, handling optimistic concurrency errors if another
-  # process has already committed events to the event log for the same aggregate
+  # Insert a database event struct in the events table,
+  # handling optimistic concurrency errors if another process has already
+  # committed events to the event log for the same aggregate
   defp insert_event(event = %Event{}) do
     event
     |> Changeset.change()
-    |> Changeset.unique_constraint(:sequence, name: :events_aggregate_sequence_index)
+    |> aggregate_sequence_constraint()
     |> Repo.insert()
+  end
+
+  defp aggregate_sequence_constraint(changeset = %Changeset{}) do
+    Changeset.unique_constraint(
+      changeset,
+      :sequence,
+      name: :events_aggregate_sequence_index)
   end
 end

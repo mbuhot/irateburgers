@@ -1,8 +1,12 @@
 defmodule Irateburgers.Web.BurgerReviewCreatePlug do
+  @moduledoc """
+  Handler plug for post /burgers/:id/reviews
+  """
+
   use Plug.Builder
   import Plug.Conn, only: [put_resp_content_type: 2]
   alias Plug.Conn
-  alias Irateburgers.{Burger, Review, ReviewBurger}
+  alias Irateburgers.{Burger, BurgerServer, Review, ReviewBurger}
 
   plug :put_resp_content_type, "application/json"
   plug :validate
@@ -11,7 +15,8 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlug do
   plug :respond
 
   def validate(conn, _opts) do
-    with {:ok, command = %ReviewBurger{}} <- ReviewBurger.new(Map.put(conn.params, "burger_id", conn.params["id"])) do
+    params = Map.put(conn.params, "burger_id", conn.params["id"])
+    with {:ok, command = %ReviewBurger{}} <- ReviewBurger.new(params) do
       Conn.assign conn, :command, command
     else
       {:error, errors} ->
@@ -25,14 +30,17 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlug do
     conn
   end
 
-  def create(conn = %Conn{assigns: %{command: command = %ReviewBurger{}}}, _opts) do
-    with {:ok, burger = %Burger{}} <- Irateburgers.BurgerServer.review_burger(command),
+  def create(
+    conn = %Conn{assigns: %{command: command = %ReviewBurger{}}}, _opts) do
+
+    with {:ok, burger = %Burger{}} <- BurgerServer.review_burger(command),
          review <- Burger.find_review_by_user(burger, command.username) do
       Conn.assign conn, :review, review
     else
       {:error, :burger_not_found} ->
+        message = "Burger with id: #{command.burger_id} not found"
         conn
-        |> Conn.send_resp(404, Poison.encode! %{error: "Burger with id: #{command.burger_id} not found"})
+        |> Conn.send_resp(404, Poison.encode! %{error: message})
         |> Conn.halt()
       {:error, reason} ->
         conn

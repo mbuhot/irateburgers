@@ -1,5 +1,5 @@
 defmodule Irateburgers.Review do
-  @doc """
+  @moduledoc """
   A burger review.
   """
 

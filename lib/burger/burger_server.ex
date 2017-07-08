@@ -22,7 +22,8 @@ defmodule Irateburgers.BurgerServer do
   Returns {:ok, burger} on success, {:error, reason} on failure.
   Use the `Burger` module to locate the newly created review by username.
   """
-  def review_burger(command = %ReviewBurger{burger_id: burger_id}) when is_binary(burger_id) do
+  def review_burger(command = %ReviewBurger{burger_id: burger_id})
+  when is_binary(burger_id) do
     dispatch_command(burger_id, command)
   end
 

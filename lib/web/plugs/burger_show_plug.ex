@@ -1,4 +1,8 @@
 defmodule Irateburgers.Web.BurgerShowPlug do
+  @moduledoc """
+  Handler plug for get /burgers/:id
+  """
+
   use Plug.Builder
   import Plug.Conn, only: [put_resp_content_type: 2]
   alias Plug.Conn

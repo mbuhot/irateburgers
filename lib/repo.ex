@@ -14,10 +14,10 @@ defmodule Irateburgers.Repo do
     alias Irateburgers.Event
 
     query =
-      Query.from e in Event,
+      Query.from(e in Event,
       where: e.type in ^(Enum.map(types, &to_string/1)),
-      where: e.id >= ^position
+      where: e.id >= ^position)
 
-    stream(query) |> Stream.map(&Event.to_struct/1)
+    query |> stream() |> Stream.map(&Event.to_struct/1)
   end
 end

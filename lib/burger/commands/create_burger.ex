@@ -1,7 +1,18 @@
 defmodule Irateburgers.CreateBurger do
+  @moduledoc """
+  Command to add a new burger to the system.
+  The burger id will be automatically generated.
+  """
+
   use Ecto.Schema
-  alias Ecto.Changeset
-  alias Irateburgers.{Burger, BurgerCreated, CreateBurger, CommandProtocol, ErrorHelpers}
+  alias Ecto.{Changeset, UUID}
+  alias Irateburgers.{
+    Burger,
+    BurgerCreated,
+    CreateBurger,
+    CommandProtocol,
+    ErrorHelpers
+  }
 
   @primary_key false
   embedded_schema do
@@ -22,12 +33,15 @@ defmodule Irateburgers.CreateBurger do
   def changeset(struct, params) do
     struct
     |> Changeset.cast(params, [:name, :price, :description, :images])
-    |> Changeset.put_change(:id, Ecto.UUID.generate())
+    |> Changeset.put_change(:id, UUID.generate())
     |> Changeset.validate_required([:id, :name, :price, :description])
   end
 
   defimpl CommandProtocol do
-    def execute(command = %CreateBurger{id: id}, burger = %Burger{id: id, version: 0}) do
+    def execute(
+      command = %CreateBurger{id: id},
+      burger = %Burger{id: id, version: 0})
+    do
       event = %BurgerCreated{
         burger_id: id,
         version: burger.version + 1,
@@ -38,7 +52,8 @@ defmodule Irateburgers.CreateBurger do
       }
       {:ok, [event]}
     end
-    def execute(%CreateBurger{id: id}, %Burger{id: id, version: n}) when (n > 0) do
+    def execute(%CreateBurger{id: id}, %Burger{id: id, version: n})
+    when (n > 0) do
       {:error, :burger_already_exists}
     end
   end

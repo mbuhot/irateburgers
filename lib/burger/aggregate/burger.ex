@@ -1,10 +1,10 @@
 defmodule Irateburgers.Burger do
-  @doc """
+  @moduledoc """
   A burger with some attributes that can be reviewed.
   """
 
   use Ecto.Schema
-  alias Irateburgers.{Burger, Review}
+  alias Irateburgers.Burger
 
   @derive {Poison.Encoder, except: [:__meta__]}
 
@@ -23,8 +23,12 @@ defmodule Irateburgers.Burger do
   Find the review for the given burger submitted with the given username.
   Return `nil` if no review found.
   """
-  def find_review_by_user(burger = %Burger{}, username) when is_binary(username) do
-    Enum.find(burger.reviews, fn review = %Review{} -> review.username == username end)
+  def find_review_by_user(
+    burger = %Burger{},
+    username)
+  when
+    is_binary(username)
+  do
+    Enum.find(burger.reviews, &match?(%{username: ^username}, &1))
   end
-
 end

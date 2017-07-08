@@ -1,4 +1,9 @@
 defmodule Irateburgers.Event do
+  @moduledoc """
+  Ecto schema for storing events in the database.
+  Provides convenience functions for converting to/from custom struct types and applying an event to an aggregate.
+  """
+
   use Ecto.Schema
   alias Irateburgers.{Event, EventProtocol}
 

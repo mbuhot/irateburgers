@@ -1,4 +1,8 @@
 defmodule Irateburgers.BurgerCreated do
+  @moduledoc """
+  Event raised after `CreateBurger` commandn is executed.
+  """
+
   use Ecto.Schema
   alias Ecto.Changeset
   alias Irateburgers.{Burger, BurgerCreated, ErrorHelpers, EventProtocol, Event}
@@ -16,19 +20,22 @@ defmodule Irateburgers.BurgerCreated do
 
   def new(params) do
     case changeset(%BurgerCreated{}, Map.new(params)) do
-      cs = %{valid?: true} -> {:ok, Ecto.Changeset.apply_changes(cs)}
+      cs = %{valid?: true} -> {:ok, Changeset.apply_changes(cs)}
       cs -> {:error, ErrorHelpers.errors_on(cs)}
     end
   end
 
   def changeset(struct, params) do
     struct
-    |> Changeset.cast(params, [:id, :burger_id, :version, :name, :price, :description, :images])
-    |> Changeset.validate_required([:burger_id, :version, :name, :price, :description])
+    |> Changeset.cast(params, __schema__(:fields))
+    |> Changeset.validate_required(__schema__(:fields) -- [:id, :images])
   end
 
   defimpl EventProtocol do
-    def apply(event = %BurgerCreated{burger_id: burger_id, version: 1}, burger = %Burger{id: burger_id, version: 0}) do
+    def apply(
+      event = %BurgerCreated{burger_id: burger_id, version: 1},
+      burger = %Burger{id: burger_id, version: 0})
+    do
       %{burger |
         version: event.version,
         name: event.name,
@@ -58,7 +65,11 @@ defmodule Irateburgers.BurgerCreated do
       BurgerCreated.new(
         Map.merge(
           event.payload,
-          %{"id" => event.id, "burger_id" => event.aggregate, "version" => event.sequence}))
+          %{
+            "id" => event.id,
+            "burger_id" => event.aggregate,
+            "version" => event.sequence
+          }))
 
     domain_event
   end

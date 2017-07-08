@@ -1,10 +1,19 @@
 defmodule Irateburgers.Aggregate do
+  @moduledoc """
+  Defines common helpers for working with Aggregates.
+
+  Aggregates are represented as `Agent` processes holding some state.
+  The state must at least have `id` `:binary_id` and `version` `:integer` keys.
+  """
+
   alias Irateburgers.{Command, Event, Repo}
   require Ecto.Query, as: Query
 
   @doc """
-  Finds Aggregate process by id, or starts one using the given initial state and module.
+  Finds Aggregate process by id,
+  or starts one using the given initial state and module.
   """
+  @spec find_or_start(binary, map) :: pid
   def find_or_start(id, initial = %{id: id, version: 0}) do
     case Registry.lookup(Irateburgers.AggregateRegistry, id) do
       [{pid, _}] when is_pid(pid) -> pid
@@ -16,10 +25,14 @@ defmodule Irateburgers.Aggregate do
     end
   end
 
-  # Start an aggregate agent, registering it in Irateburgers.AggregateRegistry under key: id
+  # Start an aggregate agent, registering it in AggregateRegistry under key: id
   defp start_agent(id, initial_state) do
     Agent.start(fn ->
-        Registry.update_value(Irateburgers.AggregateRegistry, id, fn _ -> &ensure_event_applied/2 end)
+        Registry.update_value(
+          Irateburgers.AggregateRegistry,
+          id,
+          fn _ -> &ensure_event_applied/2 end)
+
         init(initial_state)
       end,
       name: {:via, Registry, {Irateburgers.AggregateRegistry, id}})
@@ -43,7 +56,10 @@ defmodule Irateburgers.Aggregate do
    - Loading all new events for the aggregate, if the event version is more than 1 greater than the aggregate version
    - Otherwise return the aggregate as-is if the event version is not greater than the aggregate version
   """
-  def ensure_event_applied(aggregate = %{version: version}, event = %{version: event_version}) do
+  def ensure_event_applied(
+    aggregate = %{version: version},
+    event = %{version: event_version})
+  do
     cond do
       event_version == version + 1 -> Event.apply(event, aggregate)
       event_version > version + 1 -> init(aggregate)
@@ -51,10 +67,7 @@ defmodule Irateburgers.Aggregate do
     end
   end
 
-  @doc """
-  Applies a list of events in order to an aggregate
-  """
-  def apply_events(aggregate, events) when is_list(events) do
+  defp apply_events(aggregate, events) when is_list(events) do
     Enum.reduce(events, aggregate, &Event.apply/2)
   end
 

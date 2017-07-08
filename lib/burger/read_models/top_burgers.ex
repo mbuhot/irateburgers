@@ -1,6 +1,10 @@
 defmodule Irateburgers.TopBurgers do
+  @moduledoc """
+  Read-model for querying the top rated burgers of all time.
+  """
+
   defmodule Record do
-    @doc """
+    @moduledoc """
     This struct represents a single row in the Top-Burgers table:
 
     1. "Resolution Breaker", 4.5, 8 Reviews
@@ -36,13 +40,15 @@ defmodule Irateburgers.TopBurgers do
   end
 
   defmodule Model do
-    @doc """
+    @moduledoc """
     This structure defines the model of the all-time top burgers.
 
-    It maintains a map of Records by burger-id, which will be incrementally updated as Reviews are submitted,
-    and a list of records sorted by average review.
+    It maintains a map of Records by burger-id, which will be incrementally
+    updated as Reviews are submitted, and a list of records sorted by average
+    review.
 
-    The position in the global event log is maintained to ensure old/duplicated events are not applied.
+    The position in the global event log is maintained to ensure old/duplicated
+    events are not applied.
     """
 
     use Ecto.Schema
@@ -57,25 +63,44 @@ defmodule Irateburgers.TopBurgers do
     end
 
     # Ignore events that were already procesed when the model was initialized
-    def apply_event(model = %Model{last_event_id: n},
-                   _event = %{id: m}) when is_integer(m) and is_integer(m) and m <= n do
+    def apply_event(
+      model = %Model{last_event_id: n},
+      _event = %{id: m})
+    when
+      is_integer(m) and
+      is_integer(n) and
+      m <= n
+    do
       model
     end
 
     # Add a new new burger record to the model, initially has no reviews
-    def apply_event(model = %Model{}, %BurgerCreated{burger_id: id, name: name, version: version}) do
-      {:ok, record} = Record.new(burger_id: id, name: name, version: version, average_rating: 0, num_reviews: 0)
+    def apply_event(
+      model = %Model{},
+      %BurgerCreated{burger_id: id, name: name, version: version})
+    do
+      {:ok, record} = Record.new(
+        burger_id: id,
+        name: name,
+        version: version,
+        average_rating: 0,
+        num_reviews: 0)
+
       %{model | by_id: Map.put(model.by_id, id, record), by_rating: nil}
     end
 
     # Update the average rating for a burger after being reviewed
-    def apply_event(model = %Model{}, event = %BurgerReviewed{burger_id: burger_id}) do
+    def apply_event(
+      model = %Model{},
+      event = %BurgerReviewed{burger_id: burger_id})
+    do
       new_burger =
         model
         |> find_burger(burger_id)
         |> update_average_rating(event.rating)
 
-      %{model | by_id: Map.put(model.by_id, burger_id, new_burger), by_rating: nil}
+      new_by_id = Map.put(model.by_id, burger_id, new_burger)
+      %{model | by_id: new_by_id, by_rating: nil}
     end
 
     @doc """
@@ -86,27 +111,41 @@ defmodule Irateburgers.TopBurgers do
     end
 
     # Update the given burger record to include a new review with given rating
-    defp update_average_rating(burger = %Record{}, rating) when is_integer(rating) do
-      new_total_reviews = burger.num_reviews + 1
+    defp update_average_rating(
+      burger = %Record{average_rating: avg, num_reviews: n},
+      rating)
+    when is_integer(rating) do
       %{burger |
-        num_reviews: new_total_reviews,
-        average_rating: burger.average_rating * (burger.num_reviews / new_total_reviews) + (rating / new_total_reviews)
+        num_reviews: n + 1,
+        average_rating: incremental_average(avg, n, rating)
       }
+    end
+
+    defp incremental_average(avg, count, value) do
+      avg * (count / (count + 1)) + (value / (count + 1))
     end
 
     @doc """
     Sorts the burger records by rating if necessary and takes the top `count`
-    return {records, new_model} so the sorting can be cached by TopBurgers.Server
+    returns {records, new_model} so the sorting can be cached
     """
-    def top_burgers(model = %Model{by_rating: nil}, count) when is_integer(count) do
+    def top_burgers(
+      model = %Model{by_rating: nil},
+      count)
+    when is_integer(count) do
       new_model = sort_by_rating(model)
       top_burgers(new_model, count)
     end
-    def top_burgers(model = %Model{by_rating: records}, count) when is_list(records) and is_integer(count) do
+    def top_burgers(model = %Model{by_rating: records}, count)
+    when
+      is_list(records) and
+      is_integer(count)
+    do
       {Enum.take(records, count), model}
     end
 
-    # Sorts the burger records by average_rating descending, updates `model.by_rating` with the result
+    # Sorts the burger records by average_rating descending,
+    # updates `model.by_rating` with the result
     defp sort_by_rating(model = %Model{by_id: burgers = %{}}) do
       sorted =
         burgers
@@ -121,27 +160,37 @@ defmodule Irateburgers.TopBurgers do
     @moduledoc """
     This process maintains the state of the TopBurgers, and listens for events.
 
-    On initialization, it reads all relevant past events from the global event log.
+    On initialization, it reads all relevant past events from the event log.
     """
 
-    alias Irateburgers.{BurgerCreated, BurgerReviewed, Repo}
+    alias Irateburgers.{
+      BurgerCreated,
+      BurgerReviewed,
+      EventListenerRegistry,
+      Repo
+    }
     alias Irateburgers.TopBurgers.Model
 
-    def start_link() do
+    def start_link do
       Agent.start_link(&init/0, name: __MODULE__)
     end
 
-    # Register this processs in the `EventListenerRegistry` for new events, and stream in the history of past events.
-    # TODO: a better approach would be:
-    #  1. n = Query database for last event id
-    #  2. Register for events
-    #  3. Query all events from 0 .. n, guarenteeing that there is no overlap between the query and the notifications
-    def init() do
-      Registry.register(Irateburgers.EventListenerRegistry, BurgerCreated, &Model.apply_event/2)
-      Registry.register(Irateburgers.EventListenerRegistry, BurgerReviewed, &Model.apply_event/2)
+    # Register this processs in the `EventListenerRegistry` for new events,
+    # and stream in the history of past events.
+    def init do
+      Registry.register(
+        EventListenerRegistry, BurgerCreated, &Model.apply_event/2)
+
+      Registry.register(
+        EventListenerRegistry, BurgerReviewed, &Model.apply_event/2)
+
       {:ok, model} = Repo.transaction(fn ->
-        events = Repo.stream_events(types: [BurgerCreated, BurgerReviewed], position: 0)
-        Enum.reduce(events, %Model{}, fn x, acc -> Model.apply_event(acc, x) end)
+        events = Repo.stream_events(
+          types: [BurgerCreated, BurgerReviewed], position: 0)
+
+        Enum.reduce(events, %Model{}, fn x, acc ->
+          Model.apply_event(acc, x)
+        end)
       end)
       model
     end

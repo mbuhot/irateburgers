@@ -1,8 +1,12 @@
 defmodule Irateburgers.Web.BurgerCreatePlug do
+  @moduledoc """
+  Handler plug for POST /burgers
+  """
+
   use Plug.Builder
   import Plug.Conn, only: [put_resp_content_type: 2]
   alias Plug.Conn
-  alias Irateburgers.{Burger, CreateBurger}
+  alias Irateburgers.{Burger, BurgerServer, CreateBurger}
 
   plug :put_resp_content_type, "application/json"
   plug :validate
@@ -25,13 +29,17 @@ defmodule Irateburgers.Web.BurgerCreatePlug do
     conn
   end
 
-  def create(conn = %Conn{assigns: %{command: command = %CreateBurger{}}}, _opts) do
-    with {:ok, burger = %Burger{}} <- Irateburgers.BurgerServer.create(command) do
+  def create(
+    conn = %Conn{assigns: %{command: command = %CreateBurger{}}},
+    _opts)
+  do
+    with {:ok, burger = %Burger{}} <- BurgerServer.create(command) do
       Conn.assign conn, :burger, burger
     else
       {:error, :burger_already_exists} ->
+        message = "Burger with id: #{command.id} already exists"
         conn
-        |> Conn.send_resp(422, Poison.encode! %{error: "Burger with id: #{command.id} already exists"})
+        |> Conn.send_resp(422, Poison.encode! %{error: message})
         |> Conn.halt()
 
       {:error, reason} ->
