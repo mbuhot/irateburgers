@@ -9,7 +9,8 @@ defmodule Irateburgers.Mixfile do
      compilers: [:phoenix, :gettext] ++ Mix.compilers,
      start_permanent: Mix.env == :prod,
      aliases: aliases(),
-     deps: deps()]
+     deps: deps(),
+     dialyzer: [remove_defaults: [:unknown], flags: [:error_handling, :underspecs, :unmatched_returns]]]
   end
 
   # Configuration for the OTP application.
@@ -35,7 +36,8 @@ defmodule Irateburgers.Mixfile do
      {:gettext, "~> 0.11"},
      {:cowboy, "~> 1.0"},
      {:credo, ">= 0.0.0"},
-     {:dialyxir, ">= 0.0.0"}]
+     {:dialyxir, ">= 0.0.0"},
+     {:distillery, ">= 0.0.0"}]
   end
 
   # Aliases are shortcuts or tasks specific to the current project.
@@ -47,6 +49,7 @@ defmodule Irateburgers.Mixfile do
   defp aliases do
     ["ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
      "ecto.reset": ["ecto.drop", "ecto.setup"],
-     "test": ["dialyzer", "ecto.create --quiet", "ecto.migrate", "test"]]
+     "test": ["dialyzer", "ecto.create --quiet", "ecto.migrate", "test"]
+   ]
   end
 end

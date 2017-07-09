@@ -128,7 +128,7 @@ defmodule Irateburgers.TopBurgers do
       }
     end
 
-    @spec incremental_average(number, integer, integer) :: number
+    @spec incremental_average(number, integer, integer) :: float
     defp incremental_average(avg, count, value) do
       avg * (count / (count + 1)) + (value / (count + 1))
     end
@@ -190,10 +190,10 @@ defmodule Irateburgers.TopBurgers do
     # and stream in the history of past events.
     @spec init() :: Model.t
     def init do
-      Registry.register(
+      {:ok, _pid} = Registry.register(
         EventListenerRegistry, BurgerCreated, &Model.apply_event/2)
 
-      Registry.register(
+      {:ok, _pid} = Registry.register(
         EventListenerRegistry, BurgerReviewed, &Model.apply_event/2)
 
       {:ok, model} = Repo.transaction(fn ->

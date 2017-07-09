@@ -8,11 +8,14 @@ defmodule Irateburgers.EventListener do
   alias Irateburgers.{Event, EventListenerRegistry, AggregateRegistry, Repo}
   alias Postgrex.Notifications, as: PgNotifications
 
-  @type state :: %{
-    notifications_pid: pid,
-    notifications_ref: reference,
-    notifications_channel: binary
-  }
+  defmodule State do
+    defstruct [:notifications_pid, :notifications_ref, :notifications_channel]
+    @type t :: %__MODULE__{
+      notifications_pid: pid,
+      notifications_ref: reference,
+      notifications_channel: binary
+    }
+  end
 
   @doc """
   Starts an EventListener GenServer process
@@ -27,13 +30,13 @@ defmodule Irateburgers.EventListener do
 
   Listens on the "events" channel
   """
-  @spec init(term) :: {:ok, state}
+  @spec init(term) :: {:ok, State.t}
   def init(_args) do
     channel = "events"
     pg_config = Application.get_env(:irateburgers, Repo)
     {:ok, pid} = PgNotifications.start_link(pg_config)
     {:ok, ref} = PgNotifications.listen(pid, channel)
-    {:ok, %{
+    {:ok, %State{
       notifications_pid: pid,
       notifications_ref: ref,
       notifications_channel: channel
@@ -45,7 +48,7 @@ defmodule Irateburgers.EventListener do
 
   Events are sent to aggregates and event listeners
   """
-  @spec handle_info(term, state) :: {:noreply, state}
+  @spec handle_info(term, State.t) :: {:noreply, State.t}
   def handle_info({:notification, _, _, _, payload}, state = %{}) do
     %{
       "id" => id,

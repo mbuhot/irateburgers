@@ -13,7 +13,7 @@ defmodule Irateburgers.Command do
   @spec execute(CommandProtocol.t, map) :: {:ok, [EventProtocol.t]} | {:error, term}
   def execute(command, aggregate = %{id: id}) do
     Repo.transaction fn ->
-      Repo.query("SELECT pg_advisory_xact_lock($1)", [:erlang.phash2(id)])
+      {:ok, _} = Repo.query("SELECT pg_advisory_xact_lock($1)", [:erlang.phash2(id)])
       with {:ok, events} <- CommandProtocol.execute(command, aggregate),
            :ok <- log_events(events) do
         events
@@ -28,7 +28,7 @@ defmodule Irateburgers.Command do
   end
 
   # Converts domain event structs to database events and persists
-  @spec log_events([EventProtocol.t]) :: :ok | {:error, term}
+  @spec log_events([EventProtocol.t]) :: :ok | {:error, Changeset.t}
   defp log_events([]), do: :ok
   defp log_events([event | rest]) do
     db_event = Event.from_struct(event)

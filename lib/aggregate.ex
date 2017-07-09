@@ -9,11 +9,22 @@ defmodule Irateburgers.Aggregate do
   alias Irateburgers.{Command, CommandProtocol, Event, Repo}
   require Ecto.Query, as: Query
 
+  @type aggregate_id :: binary
+  @type aggregate :: %{
+    :id => aggregate_id,
+    :version => integer,
+    atom => term
+  }
+  @type event :: %{
+    :version => integer,
+    atom => term
+  }
+
   @doc """
   Finds Aggregate process by id,
   or starts one using the given initial state and module.
   """
-  @spec find_or_start(binary, map) :: pid
+  @spec find_or_start(aggregate_id, aggregate) :: pid
   def find_or_start(id, initial = %{id: id, version: 0}) do
     case Registry.lookup(Irateburgers.AggregateRegistry, id) do
       [{pid, _}] -> pid
@@ -26,10 +37,10 @@ defmodule Irateburgers.Aggregate do
   end
 
   # Start an aggregate agent, registering it in AggregateRegistry under key: id
-  @spec start_agent(binary, term) :: {:ok, pid} | {:error, {:already_started, pid}}
+  @spec start_agent(aggregate_id, aggregate) :: {:ok, pid} | {:error, {:already_started, pid}}
   defp start_agent(id, initial_state) do
     Agent.start(fn ->
-        Registry.update_value(
+        {_new, _old} = Registry.update_value(
           Irateburgers.AggregateRegistry,
           id,
           fn _ -> &ensure_event_applied/2 end)
@@ -40,7 +51,7 @@ defmodule Irateburgers.Aggregate do
   end
 
   #Initialize an aggregate from events in the Repo
-  @spec init(%{id: binary, version: integer}) :: map
+  @spec init(aggregate) :: aggregate
   defp init(aggregate = %{id: id, version: version}) do
     db_events = Repo.all(
       Query.from e in Event,
@@ -58,7 +69,7 @@ defmodule Irateburgers.Aggregate do
    - Loading all new events for the aggregate, if the event version is more than 1 greater than the aggregate version
    - Otherwise return the aggregate as-is if the event version is not greater than the aggregate version
   """
-  @spec ensure_event_applied(map, map) :: map
+  @spec ensure_event_applied(aggregate, event) :: aggregate
   def ensure_event_applied(
     aggregate = %{version: version},
     event = %{version: event_version})
@@ -70,7 +81,7 @@ defmodule Irateburgers.Aggregate do
     end
   end
 
-  @spec apply_events(map, list(map)) :: map
+  @spec apply_events(aggregate, list(event)) :: aggregate
   defp apply_events(aggregate, events) when is_list(events) do
     Enum.reduce(events, aggregate, &Event.apply/2)
   end
@@ -81,7 +92,7 @@ defmodule Irateburgers.Aggregate do
   If the command is successful, updates the agent state and returns {:ok, state}
   If the command fails, returns {:error, reason} leaving the agent state unchanged
   """
-  @spec dispatch_command(pid, CommandProtocol.t) :: {:ok, map} | {:error, term}
+  @spec dispatch_command(pid, CommandProtocol.t) :: {:ok, aggregate} | {:error, term}
   def dispatch_command(pid, command = %{}) when is_pid(pid) do
     Agent.get_and_update pid, fn state ->
       with {:ok, events} <- Command.execute(command, state) do

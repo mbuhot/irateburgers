@@ -1,5 +1,6 @@
 defprotocol Irateburgers.CommandProtocol do
   alias Irateburgers.{CommandProtocol, EventProtocol}
+  @dialyzer {:nowarn_function, __protocol__: 1}
 
   @doc """
   Execute the current command against an aggregate,
