@@ -5,10 +5,12 @@ defmodule Irateburgers.Repo do
   Dynamically loads the repository url from the
   DATABASE_URL environment variable.
   """
+  @spec init(term, Keyword.t) :: {:ok, Keyword.t}
   def init(_, opts) do
     {:ok, Keyword.put(opts, :url, System.get_env("DATABASE_URL"))}
   end
 
+  @spec stream_events(Keyword.t) :: Enumerable.t
   def stream_events(types: types, position: position) do
     require Ecto.Query, as: Query
     alias Irateburgers.Event

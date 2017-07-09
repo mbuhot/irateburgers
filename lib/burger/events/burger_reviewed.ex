@@ -25,7 +25,9 @@ defmodule Irateburgers.BurgerReviewed do
     field :comment, :string
     field :created_at, :utc_datetime
   end
+  @type t :: %__MODULE__{}
 
+  @spec new(Keyword.t | map) :: {:ok, BurgerReviewed.t} | {:error, term}
   def new(params) do
     case changeset(%BurgerReviewed{}, Map.new(params)) do
       cs = %{valid?: true} -> {:ok, Changeset.apply_changes(cs)}
@@ -33,6 +35,7 @@ defmodule Irateburgers.BurgerReviewed do
     end
   end
 
+  @spec changeset(BurgerReviewed.t, map) :: Ecto.Changeset.t
   def changeset(struct, params) do
     struct
     |> Changeset.cast(params, __schema__(:fields))
@@ -40,6 +43,7 @@ defmodule Irateburgers.BurgerReviewed do
   end
 
   defimpl EventProtocol do
+    @spec apply(BurgerReviewed.t, Burger.t) :: Burger.t
     def apply(
       event = %BurgerReviewed{burger_id: id, version: m},
       burger = %Burger{id: id, version: n})
@@ -55,6 +59,7 @@ defmodule Irateburgers.BurgerReviewed do
       %{burger | version: event.version, reviews: [review | burger.reviews]}
     end
 
+    @spec to_event_log(BurgerReviewed.t) :: Event.t
     def to_event_log(event = %BurgerReviewed{}) do
       %Event{
         aggregate: event.burger_id,
@@ -71,6 +76,7 @@ defmodule Irateburgers.BurgerReviewed do
     end
   end
 
+  @spec from_event_log(Event.t) :: BurgerReviewed.t
   def from_event_log(event = %Event{}) do
     {:ok, domain_event} =
       BurgerReviewed.new(

@@ -24,7 +24,9 @@ defmodule Irateburgers.TopBurgers do
       field :average_rating, :float
       field :num_reviews, :integer
     end
+    @type t :: %__MODULE__{}
 
+    @spec new(Keyword.t | map) :: {:ok, Record.t} | {:error, term}
     def new(params) do
       case changeset(%__MODULE__{}, Map.new(params)) do
         cs = %{valid?: true} -> {:ok, Changeset.apply_changes(cs)}
@@ -32,6 +34,7 @@ defmodule Irateburgers.TopBurgers do
       end
     end
 
+    @spec changeset(Record.t, map) :: Changeset.t
     def changeset(struct, params) do
       struct
       |> Changeset.cast(params, __schema__(:fields))
@@ -61,8 +64,10 @@ defmodule Irateburgers.TopBurgers do
       field :by_id, {:map, Record}, default: %{}
       embeds_many :by_rating, Record
     end
+    @type t :: %__MODULE__{}
 
     # Ignore events that were already procesed when the model was initialized
+    @spec apply_event(Model.t, map) :: Model.t
     def apply_event(
       model = %Model{last_event_id: n},
       _event = %{id: m})
@@ -106,11 +111,13 @@ defmodule Irateburgers.TopBurgers do
     @doc """
     Gets a burger record by ID from the model
     """
+    @spec find_burger(Model.t, binary) :: Record.t | nil
     def find_burger(model = %Model{}, burger_id) when is_binary(burger_id) do
       model.by_id[burger_id]
     end
 
     # Update the given burger record to include a new review with given rating
+    @spec update_average_rating(Record.t, integer) :: Record.t
     defp update_average_rating(
       burger = %Record{average_rating: avg, num_reviews: n},
       rating)
@@ -121,6 +128,7 @@ defmodule Irateburgers.TopBurgers do
       }
     end
 
+    @spec incremental_average(number, integer, integer) :: number
     defp incremental_average(avg, count, value) do
       avg * (count / (count + 1)) + (value / (count + 1))
     end
@@ -129,6 +137,7 @@ defmodule Irateburgers.TopBurgers do
     Sorts the burger records by rating if necessary and takes the top `count`
     returns {records, new_model} so the sorting can be cached
     """
+    @spec top_burgers(Model.t, integer) :: {[Record.t], Model.t}
     def top_burgers(
       model = %Model{by_rating: nil},
       count)
@@ -146,6 +155,7 @@ defmodule Irateburgers.TopBurgers do
 
     # Sorts the burger records by average_rating descending,
     # updates `model.by_rating` with the result
+    @spec sort_by_rating(Model.t) :: Model.t
     defp sort_by_rating(model = %Model{by_id: burgers = %{}}) do
       sorted =
         burgers
@@ -171,12 +181,14 @@ defmodule Irateburgers.TopBurgers do
     }
     alias Irateburgers.TopBurgers.Model
 
+    @spec start_link() :: {:ok, pid} | {:error, term}
     def start_link do
       Agent.start_link(&init/0, name: __MODULE__)
     end
 
     # Register this processs in the `EventListenerRegistry` for new events,
     # and stream in the history of past events.
+    @spec init() :: Model.t
     def init do
       Registry.register(
         EventListenerRegistry, BurgerCreated, &Model.apply_event/2)
@@ -198,6 +210,7 @@ defmodule Irateburgers.TopBurgers do
     @doc """
     Get the top `count` burgers by average rating
     """
+    @spec top_burgers(integer) :: [Record.t]
     def top_burgers(count) when is_integer(count) do
       Agent.get_and_update(__MODULE__, &Model.top_burgers(&1, count))
     end

@@ -14,6 +14,7 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlug do
   plug :create
   plug :respond
 
+  @spec validate(Conn.t, []) :: Conn.t
   def validate(conn, _opts) do
     params = Map.put(conn.params, "burger_id", conn.params["id"])
     with {:ok, command = %ReviewBurger{}} <- ReviewBurger.new(params) do
@@ -26,10 +27,12 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlug do
     end
   end
 
+  @spec authorize(Conn.t, []) :: Conn.t
   def authorize(conn, _opts) do
     conn
   end
 
+  @spec create(Conn.t, []) :: Conn.t
   def create(
     conn = %Conn{assigns: %{command: command = %ReviewBurger{}}}, _opts) do
 
@@ -49,6 +52,7 @@ defmodule Irateburgers.Web.BurgerReviewCreatePlug do
     end
   end
 
+  @spec respond(Conn.t, []) :: Conn.t
   def respond(conn = %Conn{assigns: %{review: review = %Review{}}}, _opts) do
     Conn.send_resp(conn, 201, Poison.encode!(review))
   end

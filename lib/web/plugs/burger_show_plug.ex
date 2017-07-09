@@ -13,18 +13,22 @@ defmodule Irateburgers.Web.BurgerShowPlug do
   plug :create
   plug :respond
 
+  @spec validate(Conn.t, []) :: Conn.t
   def validate(conn, _opts) do
     conn
   end
 
+  @spec authorize(Conn.t, []) :: Conn.t
   def authorize(conn, _opts) do
     conn
   end
 
+  @spec create(Conn.t, []) :: Conn.t
   def create(conn, _opts) do
     conn
   end
 
+  @spec respond(Conn.t, []) :: Conn.t
   def respond(conn, _opts) do
     Conn.send_resp(conn, 200, ~S({"burger": "Big Mac"}))
   end

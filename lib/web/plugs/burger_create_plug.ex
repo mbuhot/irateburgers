@@ -14,6 +14,7 @@ defmodule Irateburgers.Web.BurgerCreatePlug do
   plug :create
   plug :respond
 
+  @spec validate(Conn.t, term) :: Conn.t
   def validate(conn, _opts) do
     with {:ok, command = %CreateBurger{}} <- CreateBurger.new(conn.params) do
       Conn.assign conn, :command, command
@@ -25,10 +26,12 @@ defmodule Irateburgers.Web.BurgerCreatePlug do
     end
   end
 
+  @spec authorize(Conn.t, []) :: Conn.t
   def authorize(conn, _opts) do
     conn
   end
 
+  @spec create(Conn.t, []) :: Conn.t
   def create(
     conn = %Conn{assigns: %{command: command = %CreateBurger{}}},
     _opts)
@@ -49,6 +52,7 @@ defmodule Irateburgers.Web.BurgerCreatePlug do
     end
   end
 
+  @spec respond(Conn.t, []) :: Conn.t
   def respond(conn = %Conn{assigns: %{burger: burger = %Burger{}}}, _opts) do
     Conn.send_resp(conn, 201, Poison.encode!(burger))
   end

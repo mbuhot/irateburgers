@@ -25,7 +25,9 @@ defmodule Irateburgers.ReviewBurger do
     field :comment, :string
     field :created_at, :utc_datetime
   end
+  @type t :: %__MODULE__{}
 
+  @spec new(Keyword.t | map) :: {:ok, ReviewBurger.t} | {:error, term}
   def new(params) do
     case changeset(%ReviewBurger{}, Map.new(params)) do
       cs = %{valid?: true} -> {:ok, Changeset.apply_changes(cs)}
@@ -33,6 +35,7 @@ defmodule Irateburgers.ReviewBurger do
     end
   end
 
+  @spec changeset(ReviewBurger.t, map) :: Changeset.t
   def changeset(struct, params) do
     struct
     |> Changeset.cast(params, [:burger_id, :username, :rating, :comment])
@@ -42,6 +45,7 @@ defmodule Irateburgers.ReviewBurger do
   end
 
   defimpl CommandProtocol do
+    @spec execute(ReviewBurger.t, Burger.t) :: {:ok, [BurgerReviewed.t]} | {:error, term}
     def execute(
       command = %ReviewBurger{burger_id: burger_id},
       burger = %Burger{id: burger_id, version: n})

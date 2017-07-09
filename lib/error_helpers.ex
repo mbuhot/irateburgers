@@ -8,6 +8,7 @@ defmodule Irateburgers.ErrorHelpers do
   @doc """
   Translates an error message using gettext.
   """
+  @spec translate_error({binary, map}) :: binary
   def translate_error({msg, opts}) do
     # Because error messages were defined within Ecto, we must
     # call the Gettext module passing our Gettext backend. We
@@ -38,6 +39,7 @@ defmodule Irateburgers.ErrorHelpers do
       assert %{password: ["password is too short"]} = errors_on(changeset)
 
   """
+  @spec errors_on(Changeset.t) :: %{atom => term}
   def errors_on(changeset) do
     Changeset.traverse_errors(changeset, fn {message, opts} ->
       Enum.reduce(opts, message, fn {key, value}, acc ->

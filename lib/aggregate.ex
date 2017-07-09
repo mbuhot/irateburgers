@@ -6,7 +6,7 @@ defmodule Irateburgers.Aggregate do
   The state must at least have `id` `:binary_id` and `version` `:integer` keys.
   """
 
-  alias Irateburgers.{Command, Event, Repo}
+  alias Irateburgers.{Command, CommandProtocol, Event, Repo}
   require Ecto.Query, as: Query
 
   @doc """
@@ -16,7 +16,7 @@ defmodule Irateburgers.Aggregate do
   @spec find_or_start(binary, map) :: pid
   def find_or_start(id, initial = %{id: id, version: 0}) do
     case Registry.lookup(Irateburgers.AggregateRegistry, id) do
-      [{pid, _}] when is_pid(pid) -> pid
+      [{pid, _}] -> pid
       [] ->
         case start_agent(id, initial) do
           {:ok, pid} -> pid
@@ -26,6 +26,7 @@ defmodule Irateburgers.Aggregate do
   end
 
   # Start an aggregate agent, registering it in AggregateRegistry under key: id
+  @spec start_agent(binary, term) :: {:ok, pid} | {:error, {:already_started, pid}}
   defp start_agent(id, initial_state) do
     Agent.start(fn ->
         Registry.update_value(
@@ -39,6 +40,7 @@ defmodule Irateburgers.Aggregate do
   end
 
   #Initialize an aggregate from events in the Repo
+  @spec init(%{id: binary, version: integer}) :: map
   defp init(aggregate = %{id: id, version: version}) do
     db_events = Repo.all(
       Query.from e in Event,
@@ -56,6 +58,7 @@ defmodule Irateburgers.Aggregate do
    - Loading all new events for the aggregate, if the event version is more than 1 greater than the aggregate version
    - Otherwise return the aggregate as-is if the event version is not greater than the aggregate version
   """
+  @spec ensure_event_applied(map, map) :: map
   def ensure_event_applied(
     aggregate = %{version: version},
     event = %{version: event_version})
@@ -67,6 +70,7 @@ defmodule Irateburgers.Aggregate do
     end
   end
 
+  @spec apply_events(map, list(map)) :: map
   defp apply_events(aggregate, events) when is_list(events) do
     Enum.reduce(events, aggregate, &Event.apply/2)
   end
@@ -77,6 +81,7 @@ defmodule Irateburgers.Aggregate do
   If the command is successful, updates the agent state and returns {:ok, state}
   If the command fails, returns {:error, reason} leaving the agent state unchanged
   """
+  @spec dispatch_command(pid, CommandProtocol.t) :: {:ok, map} | {:error, term}
   def dispatch_command(pid, command = %{}) when is_pid(pid) do
     Agent.get_and_update pid, fn state ->
       with {:ok, events} <- Command.execute(command, state) do

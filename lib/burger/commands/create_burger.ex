@@ -22,7 +22,9 @@ defmodule Irateburgers.CreateBurger do
     field :description, :string
     field :images, {:array, :string}
   end
+  @type t :: %__MODULE__{}
 
+  @spec new(map | list) :: {:ok, CreateBurger.t} | {:error, term}
   def new(params) do
     case changeset(%CreateBurger{}, Map.new(params)) do
       cs = %{valid?: true} -> {:ok, Changeset.apply_changes(cs)}
@@ -30,6 +32,7 @@ defmodule Irateburgers.CreateBurger do
     end
   end
 
+  @spec changeset(CreateBurger.t, map) :: Changeset.t
   def changeset(struct, params) do
     struct
     |> Changeset.cast(params, [:name, :price, :description, :images])
@@ -38,6 +41,7 @@ defmodule Irateburgers.CreateBurger do
   end
 
   defimpl CommandProtocol do
+    @spec execute(CreateBurger.t, Burger.t) :: {:ok, [BurgerCreated.t]} | {:error, term}
     def execute(
       command = %CreateBurger{id: id},
       burger = %Burger{id: id, version: 0})

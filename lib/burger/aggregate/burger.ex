@@ -4,7 +4,7 @@ defmodule Irateburgers.Burger do
   """
 
   use Ecto.Schema
-  alias Irateburgers.Burger
+  alias Irateburgers.{Burger, Review}
 
   @derive {Poison.Encoder, except: [:__meta__]}
 
@@ -18,11 +18,13 @@ defmodule Irateburgers.Burger do
     field :images, {:array, :string}
     embeds_many :reviews, Irateburgers.Review
   end
+  @type t :: %__MODULE__{}
 
   @doc """
   Find the review for the given burger submitted with the given username.
   Return `nil` if no review found.
   """
+  @spec find_review_by_user(Burger.t, binary) :: Review.t | nil
   def find_review_by_user(
     burger = %Burger{},
     username)

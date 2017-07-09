@@ -17,7 +17,9 @@ defmodule Irateburgers.Review do
     field :comment, :string
     field :created_at, :utc_datetime
   end
+  @type t :: %__MODULE__{}
 
+  @spec new(map | list) ::  {:ok, Review.t} | {:error, term}
   def new(params) do
     case changeset(%Review{}, Map.new(params)) do
       cs = %{valid?: true} -> {:ok, Changeset.apply_changes(cs)}
@@ -25,6 +27,7 @@ defmodule Irateburgers.Review do
     end
   end
 
+  @spec changeset(Review.t, map) :: Changeset.t
   def changeset(struct, params) do
     struct
     |> Changeset.cast(params, __schema__(:fields))

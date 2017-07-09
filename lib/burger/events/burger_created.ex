@@ -17,7 +17,9 @@ defmodule Irateburgers.BurgerCreated do
     field :description, :string
     field :images, {:array, :string}
   end
+  @type t :: %__MODULE__{}
 
+  @spec new(Keyword.t | map) :: {:ok, BurgerCreated.t} | {:error, term}
   def new(params) do
     case changeset(%BurgerCreated{}, Map.new(params)) do
       cs = %{valid?: true} -> {:ok, Changeset.apply_changes(cs)}
@@ -25,6 +27,7 @@ defmodule Irateburgers.BurgerCreated do
     end
   end
 
+  @spec changeset(BurgerCreated.t, map) :: Changeset.t
   def changeset(struct, params) do
     struct
     |> Changeset.cast(params, __schema__(:fields))
@@ -32,6 +35,7 @@ defmodule Irateburgers.BurgerCreated do
   end
 
   defimpl EventProtocol do
+    @spec apply(BurgerCreated.t, Burger.t) :: Burger.t
     def apply(
       event = %BurgerCreated{burger_id: burger_id, version: 1},
       burger = %Burger{id: burger_id, version: 0})
@@ -45,6 +49,7 @@ defmodule Irateburgers.BurgerCreated do
       }
     end
 
+    @spec to_event_log(BurgerCreated.t) :: Event.t
     def to_event_log(event = %BurgerCreated{}) do
       %Event{
         aggregate: event.burger_id,
@@ -60,6 +65,7 @@ defmodule Irateburgers.BurgerCreated do
     end
   end
 
+  @spec from_event_log(Event.t) :: BurgerCreated.t
   def from_event_log(event = %Event{}) do
     {:ok, domain_event} =
       BurgerCreated.new(
